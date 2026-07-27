@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+:root {
+  --background: transparent;
+  --foreground: #171717;
+  /* Opaque surfaces for portaled overlays (Dialog/Popover) outside .program-builder */
+  --popover: oklch(1 0 0);
+  --popover-foreground: #171717;
+  --card: oklch(1 0 0);
+  --card-foreground: #171717;
+  --aurora-deep: #1e3a5f;
+  --aurora-blue: #2454ff;
+  --aurora-sky: #7ec8e8;
+  --aurora-mist: #d4eef7;
+  --aurora-teal: #3db8a0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Force light mode to prevent dark mode from affecting text color */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: transparent;
+    --foreground: #171717;
+    --popover: oklch(1 0 0);
+    --popover-foreground: #171717;
+    --card: oklch(1 0 0);
+    --card-foreground: #171717;
+  }
+}
+
+body {
+  background: #e8f1f8;
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+/* ── Animated aurora mesh (behind glass) ── */
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.app-bg__mesh {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 30%, var(--aurora-blue) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 80% 20%, var(--aurora-sky) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 70% at 70% 80%, var(--aurora-teal) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 60% at 10% 85%, var(--aurora-deep) 0%, transparent 50%),
+    linear-gradient(160deg, var(--aurora-mist) 0%, #c5dcf0 40%, #a8c8e8 100%);
+  animation: aurora-shift 22s ease-in-out infinite alternate;
+}
+
+.app-bg__blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.app-bg__blob--a {
+  width: min(55vw, 520px);
+  height: min(55vw, 520px);
+  top: 5%;
+  left: 8%;
+  background: color-mix(in srgb, var(--aurora-blue) 70%, white);
+  animation: blob-drift-a 18s ease-in-out infinite;
+}
+
+.app-bg__blob--b {
+  width: min(45vw, 420px);
+  height: min(45vw, 420px);
+  top: 40%;
+  right: 5%;
+  background: color-mix(in srgb, var(--aurora-sky) 80%, white);
+  animation: blob-drift-b 24s ease-in-out infinite;
+}
+
+.app-bg__blob--c {
+  width: min(50vw, 480px);
+  height: min(50vw, 480px);
+  bottom: 0%;
+  left: 30%;
+  background: color-mix(in srgb, var(--aurora-teal) 55%, white);
+  animation: blob-drift-c 20s ease-in-out infinite;
+}
+
+.app-bg__blob--d {
+  width: min(40vw, 360px);
+  height: min(40vw, 360px);
+  top: 15%;
+  left: 45%;
+  background: color-mix(in srgb, var(--aurora-deep) 50%, var(--aurora-mist));
+  opacity: 0.4;
+  animation: blob-drift-d 26s ease-in-out infinite;
+}
+
+/* Frosted glass over aurora only — content/cards sit above and stay opaque */
+.app-bg__glass {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, white 42%, transparent);
+  backdrop-filter: blur(28px) saturate(1.35);
+  -webkit-backdrop-filter: blur(28px) saturate(1.35);
+}
+
+@keyframes aurora-shift {
+  0% {
+    transform: scale(1) translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: scale(1.08) translate(-2%, 2%) rotate(2deg);
+  }
+}
+
+@keyframes blob-drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(12%, 18%) scale(1.15);
+  }
+}
+
+@keyframes blob-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-18%, -10%) scale(1.2);
+  }
+}
+
+@keyframes blob-drift-c {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-10%, -16%) scale(1.12);
+  }
+}
+
+@keyframes blob-drift-d {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(8%, 12%) scale(0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-bg__mesh,
+  .app-bg__blob {
+    animation: none;
+  }
+}

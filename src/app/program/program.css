@@ -1,0 +1,94 @@
+@import 'tailwindcss';
+
+/* Shadcn / admin builder tokens scoped to program routes */
+.program-builder {
+  --background: oklch(0.9702 0.0111 269.55);
+  --foreground: oklch(0.22 0.03 267);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.03 267);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.03 267);
+  --primary: oklch(0.4988 0.1894 267.36);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.01 269);
+  --secondary-foreground: oklch(0.22 0.03 267);
+  --muted: oklch(0.96 0.01 269);
+  --muted-foreground: oklch(0.5 0.03 267);
+  --accent: oklch(0.96 0.01 269);
+  --accent-foreground: oklch(0.22 0.03 267);
+  --destructive: oklch(0.68 0.21 25);
+  --border: oklch(0.82 0.045 267);
+  --input: oklch(0.82 0.045 267);
+  --ring: oklch(0.4988 0.1894 267.36 / 0.35);
+  --radius-pill: 9999px;
+  --shadow-sm: 0 1px 2px oklch(0.2 0 0 / 0.08);
+  --shadow-md: 0 6px 16px oklch(0.2 0 0 / 0.12);
+  --shadow-lg: 0 12px 28px oklch(0.2 0 0 / 0.14);
+
+  background: transparent;
+  color: var(--foreground);
+  min-height: calc(100vh - 4rem);
+}
+
+.program-builder .bg-background {
+  background-color: var(--background);
+}
+
+.program-builder .bg-card {
+  background-color: var(--card);
+}
+
+.program-builder .bg-popover {
+  background-color: var(--popover);
+}
+
+.program-builder .text-foreground {
+  color: var(--foreground);
+}
+
+.program-builder .text-muted-foreground {
+  color: var(--muted-foreground);
+}
+
+.program-builder .border-border {
+  border-color: var(--border);
+}
+
+.program-builder .bg-primary {
+  background-color: var(--primary);
+}
+
+.program-builder .text-primary {
+  color: var(--primary);
+}
+
+.program-builder .text-primary-foreground {
+  color: var(--primary-foreground);
+}
+
+.program-builder .bg-muted {
+  background-color: var(--muted);
+}
+
+.program-builder .bg-secondary {
+  background-color: var(--secondary);
+}
+
+.program-builder .text-destructive {
+  color: var(--destructive);
+}
+
+.program-builder .slim-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.4988 0.1894 267.36 / 0.3) transparent;
+}
+
+.program-builder .slim-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.program-builder .slim-scrollbar::-webkit-scrollbar-thumb {
+  background-color: oklch(0.4988 0.1894 267.36 / 0.3);
+  border-radius: 3px;
+}

@@ -1,0 +1,8 @@
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@vercel/go@3.10.1'
+  - '@vercel/python@6.47.2'
+  - vercel@54.17.3
