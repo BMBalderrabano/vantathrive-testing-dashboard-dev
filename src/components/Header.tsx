@@ -76,6 +76,9 @@ export default function Header() {
             <Link href="/organizations" className={navLinkClass("/organizations")}>
               Organizations
             </Link>
+            <Link href="/talonone" className={navLinkClass("/talonone")}>
+              TalonOne
+            </Link>
           </nav>
 
           <OperatorAuthControls />

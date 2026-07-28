@@ -42,6 +42,20 @@ export interface ProcessHabitResponse {
   [key: string]: unknown // Allow any other properties from the response
 }
 
+export const TALON_EVENT_TYPES = [
+  'exercise_post_check',
+  'onboarded',
+  'exercise_daily_completion',
+  'check_in_question',
+] as const
+
+export type TalonEventType = (typeof TALON_EVENT_TYPES)[number]
+
+export interface TrackTalonEventResult {
+  status: number
+  body: unknown
+}
+
 export interface ResetUserDataRequest {
   user_id?: string
   hard_reset?: boolean
@@ -291,6 +305,35 @@ export async function processHabit(
   }
 
   return response_body.json()
+}
+
+export async function trackTalonEvent(
+  profileId: string,
+  type: TalonEventType
+): Promise<TrackTalonEventResult> {
+  let response: Response
+  try {
+    response = await fetch('/api/talon/events', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ profileId, type }),
+    })
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : 'Network error calling Talon events API'
+    )
+  }
+
+  const contentType = response.headers.get('content-type')
+  if (contentType && contentType.includes('application/json')) {
+    const body = await response.json()
+    return { status: response.status, body }
+  }
+
+  const text = await response.text()
+  return { status: response.status, body: text }
 }
 
 export async function resetUserData(
