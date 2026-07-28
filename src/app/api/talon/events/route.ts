@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         profileId,
         type,
+        attributes: { [type]: true },
         responseContent: ['loyalty'],
       }),
     })
