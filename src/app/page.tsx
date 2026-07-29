@@ -7,6 +7,7 @@ import {
   advanceTime,
   getUserTransactions,
   resetUserData,
+  trackTalonEvent,
   addChosenOne,
   getOrganizations,
   type Organization,
@@ -57,6 +58,7 @@ function DashboardContent() {
   const [ipHistoryExpanded, setIpHistoryExpanded] = useState<boolean>(false);
   const [resetting, setResetting] = useState<boolean>(false);
   const [hardReset, setHardReset] = useState<boolean>(false);
+  const [resetTalonOne, setResetTalonOne] = useState<boolean>(true);
   const [chosenOneForm, setChosenOneForm] = useState<AddChosenOneRequest>({
     email: '',
     first_name: '',
@@ -257,10 +259,30 @@ function DashboardContent() {
 
     setResetting(true);
     try {
+      let talonResetWarning: string | undefined;
+      if (resetTalonOne) {
+        try {
+          const { status, body } = await trackTalonEvent(selectedUser, "reset_user");
+          if (status < 200 || status >= 300) {
+            talonResetWarning = `Talon.One reset_user returned status ${status}`;
+            console.warn("Talon.One reset_user failed:", body);
+          }
+        } catch (error) {
+          talonResetWarning =
+            error instanceof Error ? error.message : "Failed to call Talon.One reset_user";
+          console.warn("Talon.One reset_user error:", error);
+        }
+      }
+
       const result = await resetUserData(selectedUser, hardReset);
 
       if (result.success) {
         let successMessage = `User data reset successfully: ${result.message}`;
+        if (talonResetWarning) {
+          successMessage += `\n\nTalon.One: ${talonResetWarning}`;
+        } else if (resetTalonOne) {
+          successMessage += "\n\nTalon.One: reset_user event sent";
+        }
         if (result.pushfire?.warning) {
           successMessage += `\n\nPushfire: ${result.pushfire.warning}`;
         } else if (result.pushfire?.skipped) {
@@ -361,24 +383,37 @@ function DashboardContent() {
               </button>
             </div>
 
-            {/* Hard Reset Checkbox */}
-            <div className='mt-4 flex items-center gap-2'>
-              <input
-                type='checkbox'
-                id='hardReset'
-                checked={hardReset}
-                onChange={(e) => setHardReset(e.target.checked)}
-                className='w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500'
-              />
-              <label htmlFor='hardReset' className='text-sm text-gray-700 flex items-center gap-1'>
-                <span>Hard Reset</span>
-                <span
-                  className='text-gray-400 cursor-help'
-                  title='This method will need the user to re-subscribe to the application'
-                >
-                  ⓘ
-                </span>
-              </label>
+            <div className='mt-4 flex flex-wrap items-center gap-6'>
+              <div className='flex items-center gap-2'>
+                <input
+                  type='checkbox'
+                  id='hardReset'
+                  checked={hardReset}
+                  onChange={(e) => setHardReset(e.target.checked)}
+                  className='w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500'
+                />
+                <label htmlFor='hardReset' className='text-sm text-gray-700 flex items-center gap-1'>
+                  <span>Hard Reset</span>
+                  <span
+                    className='text-gray-400 cursor-help'
+                    title='This method will need the user to re-subscribe to the application'
+                  >
+                    ⓘ
+                  </span>
+                </label>
+              </div>
+              <div className='flex items-center gap-2'>
+                <input
+                  type='checkbox'
+                  id='resetTalonOne'
+                  checked={resetTalonOne}
+                  onChange={(e) => setResetTalonOne(e.target.checked)}
+                  className='w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500'
+                />
+                <label htmlFor='resetTalonOne' className='text-sm text-gray-700'>
+                  Reset TalonOne
+                </label>
+              </div>
             </div>
 
             {/* Chosen Ones Section */}

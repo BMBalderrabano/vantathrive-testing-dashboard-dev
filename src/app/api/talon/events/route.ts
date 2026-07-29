@@ -5,6 +5,7 @@ const TALON_EVENT_TYPES = [
   'onboarded',
   'exercise_daily_completion',
   'check_in_question',
+  'reset_user',
 ] as const
 
 type TalonEventType = (typeof TALON_EVENT_TYPES)[number]

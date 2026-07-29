@@ -75,6 +75,8 @@ export default function TalonOneEvents() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {TALON_EVENT_TYPES.map((type) => {
               const isActive = loadingType === type;
+              const isReset = type === "reset_user";
+              const label = isReset ? "reset" : type;
 
               return (
                 <button
@@ -85,7 +87,9 @@ export default function TalonOneEvents() {
                   className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${
                     buttonsDisabled
                       ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
+                      : isReset
+                        ? "bg-red-600 text-white hover:bg-red-700"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
                   }`}
                 >
                   {isActive ? (
@@ -94,7 +98,7 @@ export default function TalonOneEvents() {
                       Sending...
                     </span>
                   ) : (
-                    type
+                    label
                   )}
                 </button>
               );
