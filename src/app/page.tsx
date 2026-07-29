@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   getUsers,
@@ -67,6 +67,8 @@ function DashboardContent() {
   const [chosenOneMessage, setChosenOneMessage] = useState<string>('');
   const [calendlyTab, setCalendlyTab] = useState<"screening" | "consultation" | "reschedule" | null>(null);
   const [rescheduleUrl, setRescheduleUrl] = useState<string | undefined>(undefined);
+  /** Blocks URL→context while our context→URL replace is in flight (avoids A↔B flicker). */
+  const pendingUrlUserId = useRef<string | null>(null);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -91,30 +93,43 @@ function DashboardContent() {
     loadOrganizations();
   }, [loadUsers, loadOrganizations]);
 
-  // URL ?userId= overrides context on home (once hydrated)
+  // Keep ?userId= in sync when header/context selection changes on home.
+  // Depend only on selectedUser — not searchParams — so back/forward isn't overwritten.
   useEffect(() => {
     if (!isHydrated) return;
-    const userIdFromUrl = searchParams.get("userId");
-    if (userIdFromUrl && userIdFromUrl !== selectedUser) {
-      setSelectedUserId(userIdFromUrl);
+    const current = new URLSearchParams(window.location.search);
+    const userIdFromUrl = current.get("userId") ?? "";
+    if (selectedUser === userIdFromUrl) {
+      pendingUrlUserId.current = null;
+      return;
     }
-  }, [isHydrated, searchParams, selectedUser, setSelectedUserId]);
 
-  // Keep ?userId= in sync when header/context selection changes on home
+    pendingUrlUserId.current = selectedUser;
+    if (selectedUser) {
+      current.set("userId", selectedUser);
+    } else {
+      current.delete("userId");
+    }
+    const query = current.toString();
+    router.replace(query ? `/?${query}` : "/", { scroll: false });
+  }, [selectedUser, isHydrated, router]);
+
+  // Apply external URL changes (back/forward, shared links) without fighting our own replace
   useEffect(() => {
     if (!isHydrated) return;
     const userIdFromUrl = searchParams.get("userId") ?? "";
-    if (selectedUser === userIdFromUrl) return;
 
-    const newSearchParams = new URLSearchParams(searchParams.toString());
-    if (selectedUser) {
-      newSearchParams.set("userId", selectedUser);
-    } else {
-      newSearchParams.delete("userId");
+    if (pendingUrlUserId.current !== null) {
+      if (userIdFromUrl === pendingUrlUserId.current) {
+        pendingUrlUserId.current = null;
+      }
+      return;
     }
-    const query = newSearchParams.toString();
-    router.replace(query ? `/?${query}` : "/", { scroll: false });
-  }, [selectedUser, isHydrated, searchParams, router]);
+
+    if (userIdFromUrl !== selectedUser) {
+      setSelectedUserId(userIdFromUrl);
+    }
+  }, [isHydrated, searchParams, selectedUser, setSelectedUserId]);
 
   // Default chosen-one org from header context when unset
   useEffect(() => {

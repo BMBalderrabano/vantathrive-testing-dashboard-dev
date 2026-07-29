@@ -2,11 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
 import { useQaContext } from "@/context/qa-context";
 import { OperatorAuthControls } from "@/components/OperatorAuthControls";
-import { getOrganizations, getUsers, type Organization } from "@/lib/api";
-import type { User } from "@/lib/types";
 
 export default function Header() {
   const pathname = usePathname();
@@ -16,35 +13,9 @@ export default function Header() {
     setSelectedUserId,
     setSelectedOrgId,
     isHydrated,
+    users,
+    organizations,
   } = useQaContext();
-
-  const [users, setUsers] = useState<User[]>([]);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-
-  const loadPickers = useCallback(async () => {
-    try {
-      const [usersData, orgsData] = await Promise.all([
-        getUsers(),
-        getOrganizations(),
-      ]);
-      setUsers(usersData);
-      setOrganizations(orgsData);
-    } catch (error) {
-      console.error("Failed to load header picker data:", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadPickers();
-  }, [loadPickers]);
-
-  useEffect(() => {
-    const onUsersChanged = () => {
-      loadPickers();
-    };
-    window.addEventListener("qa-users-changed", onUsersChanged);
-    return () => window.removeEventListener("qa-users-changed", onUsersChanged);
-  }, [loadPickers]);
 
   const navLinkClass = (href: string) => {
     const isActive =
