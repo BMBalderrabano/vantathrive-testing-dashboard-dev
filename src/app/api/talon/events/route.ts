@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { supabaseAdmin } from '@/lib/supabase/service-role'
+import { getStartOfDayUtc, getStartOfWeekUtc } from '@/lib/talon-time'
+
 const TALON_EVENT_TYPES = [
   'exercise_post_check',
   'onboarded',
@@ -16,6 +19,32 @@ interface TalonEventRequest {
 }
 
 const DEFAULT_TALON_BASE_URL = 'https://medvanta.us-east4.talon.one'
+
+async function loadProfileTimezone(profileId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .select('timezone')
+      .eq('id', profileId)
+      .maybeSingle()
+
+    if (error) {
+      console.warn(
+        'Failed to load profiles.timezone for Talon event; falling back to UTC',
+        error,
+      )
+      return null
+    }
+
+    return data?.timezone ?? null
+  } catch (error) {
+    console.warn(
+      'Failed to load profiles.timezone for Talon event; falling back to UTC',
+      error,
+    )
+    return null
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,6 +78,18 @@ export async function POST(request: NextRequest) {
       process.env.TALON_ONE_BASE_URL || DEFAULT_TALON_BASE_URL
     ).replace(/\/$/, '')
 
+    const attributes: Record<string, boolean | string> = { [type]: true }
+
+    if (type === 'exercise_daily_completion' || type === 'check_in_question') {
+      const timezone = await loadProfileTimezone(profileId)
+
+      if (type === 'exercise_daily_completion') {
+        attributes.start_of_day = getStartOfDayUtc(timezone)
+      } else {
+        attributes.start_of_week = getStartOfWeekUtc(timezone)
+      }
+    }
+
     const talonResponse = await fetch(`${baseUrl}/v2/events`, {
       method: 'POST',
       headers: {
@@ -58,7 +99,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         profileId,
         type,
-        attributes: { [type]: true },
+        attributes,
         responseContent: ['loyalty'],
       }),
     })
