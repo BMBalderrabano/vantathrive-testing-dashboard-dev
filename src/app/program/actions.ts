@@ -18,7 +18,7 @@ import { PROGRAM_ASSIGNMENT_STATUS } from '@/lib/constants/program-assignment-st
 /**
  * Get paginated program assignments (joined with program_template)
  * Supports server-side filtering for search and weeks.
- * showAssigned=true: active assigned programs only; false: templates only.
+ * showAssigned=true: templates and active assignments; false: templates only.
  */
 export async function getProgramAssignmentsPaginated(
   page: number = 1,

@@ -179,7 +179,7 @@ export class ProgramAssignmentsQuery extends SupabaseQuery {
    * @param pageSize - Number of items per page
    * @param search - Optional search query (searches program_template.name, description, goals)
    * @param weeks - Optional weeks filter (filters by program_template.weeks)
-   * @param showAssigned - If true, only 'active' (assigned, non pre-program). If false, only 'template'
+   * @param showAssigned - If true, show both 'template' and 'active'. If false, only 'template'
    * @returns Success with paginated data or error
    */
   public async getTemplatesPaginated(
@@ -242,7 +242,7 @@ export class ProgramAssignmentsQuery extends SupabaseQuery {
 
     // Filter by status
     if (showAssigned) {
-      query = query.eq('status', 'active');
+      query = query.in('status', ['template', 'active']);
     } else {
       query = query.eq('status', 'template');
     }
