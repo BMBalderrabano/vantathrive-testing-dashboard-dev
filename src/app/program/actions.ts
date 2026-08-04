@@ -16,8 +16,9 @@ import type { ExerciseTemplate } from '@/lib/supabase/schemas/exercise-templates
 import { PROGRAM_ASSIGNMENT_STATUS } from '@/lib/constants/program-assignment-status';
 
 /**
- * Get paginated program assignments with status='template' (joined with program_template)
- * Supports server-side filtering for search and weeks
+ * Get paginated program assignments (joined with program_template)
+ * Supports server-side filtering for search and weeks.
+ * showAssigned=true: active assigned programs only; false: templates only.
  */
 export async function getProgramAssignmentsPaginated(
   page: number = 1,

@@ -6,7 +6,7 @@ import { BuilderContextProvider } from '@/context/builder-context';
 export default async function ProgramListPage() {
   const pageSize = 21;
   const [initialPageResult, preProgramResult] = await Promise.all([
-    getProgramAssignmentsPaginated(1, pageSize),
+    getProgramAssignmentsPaginated(1, pageSize, undefined, undefined, true),
     getPreProgramTemplate(),
   ]);
 

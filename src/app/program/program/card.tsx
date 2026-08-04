@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DeleteConfirmationDialog } from '@/components/ui/delete-confirmation-dialog';
@@ -11,7 +12,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Copy, Trash2 } from 'lucide-react';
+import { useQaContext } from '@/context/qa-context';
+import { programAssignmentsKeys } from '@/hooks/use-passignments';
 import type { ProgramAssignmentWithTemplate } from '@/lib/supabase/schemas/program-assignments';
+import {
+  QuickAssignDialog,
+  QuickDeassignDialog,
+} from './quick-assign-dialogs';
 
 interface ProgramTemplateCardProps {
   assignment: ProgramAssignmentWithTemplate;
@@ -28,11 +35,19 @@ export function ProgramTemplateCard({
   onDelete,
   onClone,
 }: ProgramTemplateCardProps) {
+  const queryClient = useQueryClient();
+  const { selectedUserId, selectedOrgId, users } = useQaContext();
   const template = assignment.program_template;
 
   if (!template) {
     return null;
   }
+
+  const invalidateAssignments = () => {
+    void queryClient.invalidateQueries({
+      queryKey: programAssignmentsKeys.lists(),
+    });
+  };
 
   const handleDelete = async () => {
     if (onDelete) {
@@ -73,13 +88,10 @@ export function ProgramTemplateCard({
       }
     | null
     | undefined;
-  const userName = profiles
-    ? [
-        profiles.first_name,
-        profiles.last_name,
-      ]
-        .filter(Boolean)
-        .join(' ') || profiles.email || 'Unknown User'
+  const assignedToLabel = profiles
+    ? profiles.email?.trim() ||
+      [profiles.first_name, profiles.last_name].filter(Boolean).join(' ') ||
+      'Unknown User'
     : null;
   const isActive = assignment.status === 'active';
 
@@ -164,10 +176,10 @@ export function ProgramTemplateCard({
           </p>
         )}
 
-        {isActive && userName && (
+        {isActive && assignedToLabel && (
           <div className="text-sm text-muted-foreground mb-3">
             Assigned to:{' '}
-            <span className="font-medium text-foreground">{userName}</span>
+            <span className="font-medium text-foreground">{assignedToLabel}</span>
           </div>
         )}
 
@@ -183,6 +195,28 @@ export function ProgramTemplateCard({
               <Badge variant="outline" className="text-muted-foreground">
                 {template.goals}
               </Badge>
+            )}
+          </div>
+          <div
+            className="flex justify-end pt-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {isActive ? (
+              <QuickDeassignDialog
+                targetUserId={assignment.user_id ?? (selectedUserId || null)}
+                users={users}
+                assignedProfile={profiles}
+                onSuccess={invalidateAssignments}
+              />
+            ) : (
+              <QuickAssignDialog
+                programName={template.name}
+                programTemplateId={template.id}
+                organizationId={selectedOrgId ?? assignment.organization_id}
+                selectedUserId={selectedUserId}
+                users={users}
+                onSuccess={invalidateAssignments}
+              />
             )}
           </div>
         </div>

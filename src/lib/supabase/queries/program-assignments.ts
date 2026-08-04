@@ -173,12 +173,13 @@ export class ProgramAssignmentsQuery extends SupabaseQuery {
   }
 
   /**
-   * Get paginated program assignments with status='template' (joined with program_template)
+   * Get paginated program assignments (joined with program_template)
    * Supports server-side filtering for search and weeks
    * @param page - Page number (1-indexed)
    * @param pageSize - Number of items per page
    * @param search - Optional search query (searches program_template.name, description, goals)
    * @param weeks - Optional weeks filter (filters by program_template.weeks)
+   * @param showAssigned - If true, only 'active' (assigned, non pre-program). If false, only 'template'
    * @returns Success with paginated data or error
    */
   public async getTemplatesPaginated(
@@ -241,7 +242,7 @@ export class ProgramAssignmentsQuery extends SupabaseQuery {
 
     // Filter by status
     if (showAssigned) {
-      query = query.in('status', ['template', 'active']);
+      query = query.eq('status', 'active');
     } else {
       query = query.eq('status', 'template');
     }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { PROGRAM_ASSIGNMENT_STATUS } from '@/lib/constants/program-assignment-status'
 import { supabaseAdmin } from '@/lib/supabase/service-role'
 
 export async function POST(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
       .from('program_assignment')
       .select('id, status, program_template_id')
       .eq('user_id', user_id)
-      .in('status', ['active', 'pre_program'])
+      .eq('status', PROGRAM_ASSIGNMENT_STATUS.ACTIVE)
 
     if (fetchError) {
       console.error('Error fetching program assignments:', fetchError)

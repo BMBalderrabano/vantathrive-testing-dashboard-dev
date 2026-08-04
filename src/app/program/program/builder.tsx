@@ -95,7 +95,7 @@ export function ProgramBuilder({ onTemplateSelect, initialData }: ProgramBuilder
   );
   const [searchValue, setSearchValue] = useState('');
   const [weeksFilter, setWeeksFilter] = useState<string>('');
-  const [showAssigned, setShowAssigned] = useState(false);
+  const [showAssigned, setShowAssigned] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const pageSize = 21;
 
@@ -114,7 +114,7 @@ export function ProgramBuilder({ onTemplateSelect, initialData }: ProgramBuilder
     isHydrated &&
     !debouncedSearch &&
     !weeksFilterNumber &&
-    !showAssigned &&
+    showAssigned &&
     !selectedOrgId;
 
   const {

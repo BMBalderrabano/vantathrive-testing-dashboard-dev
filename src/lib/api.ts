@@ -19,6 +19,12 @@ import {
   ReminderPreferencesResponse,
   UpdateReminderPreferencesRequest
 } from './types'
+import type { TalonEventType } from './talon-constants'
+
+export {
+  TALON_EVENT_TYPES,
+  type TalonEventType,
+} from './talon-constants'
 
 export interface ServeQuestionRequest {
   testing: boolean
@@ -41,16 +47,6 @@ export interface ProcessHabitResponse {
   error?: string
   [key: string]: unknown // Allow any other properties from the response
 }
-
-export const TALON_EVENT_TYPES = [
-  'exercise_post_check',
-  'onboarded',
-  'exercise_daily_completion',
-  'check_in_question',
-  'reset_user',
-] as const
-
-export type TalonEventType = (typeof TALON_EVENT_TYPES)[number]
 
 export interface TrackTalonEventResult {
   status: number
@@ -310,7 +306,8 @@ export async function processHabit(
 
 export async function trackTalonEvent(
   profileId: string,
-  type: TalonEventType
+  type: TalonEventType,
+  options?: { hours?: number },
 ): Promise<TrackTalonEventResult> {
   let response: Response
   try {
@@ -319,7 +316,11 @@ export async function trackTalonEvent(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ profileId, type }),
+      body: JSON.stringify({
+        profileId,
+        type,
+        ...(typeof options?.hours === 'number' ? { hours: options.hours } : {}),
+      }),
     })
   } catch (error) {
     throw new Error(

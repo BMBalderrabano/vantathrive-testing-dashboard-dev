@@ -98,7 +98,7 @@ export default function ProgramAssignment({
 
   const handleClear = async () => {
     const confirmed = window.confirm(
-      "Clear the active program assignment for this user?"
+      "Clear active program assignment(s) for this user? Pre-program assignments will be kept."
     );
     if (!confirmed) return;
 

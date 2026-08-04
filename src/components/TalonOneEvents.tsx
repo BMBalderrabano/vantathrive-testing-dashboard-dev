@@ -69,6 +69,11 @@ export default function TalonOneEvents() {
               <div className="text-xs text-blue-600 mt-1">
                 profileId: {profileId}
               </div>
+              <div className="text-xs text-blue-600 mt-2">
+                Home Advance Time also fires{" "}
+                <code className="bg-blue-100 px-1 rounded">qa_advance_loyalty_expiry</code>{" "}
+                (expiry rules must exist in Campaign Manager).
+              </div>
             </div>
           )}
 
@@ -76,7 +81,12 @@ export default function TalonOneEvents() {
             {TALON_EVENT_TYPES.map((type) => {
               const isActive = loadingType === type;
               const isReset = type === "reset_user";
-              const label = isReset ? "reset" : type;
+              const isQaExpiry = type === "qa_advance_loyalty_expiry";
+              const label = isReset
+                ? "reset"
+                : isQaExpiry
+                  ? "qa_advance_loyalty_expiry (now)"
+                  : type;
 
               return (
                 <button

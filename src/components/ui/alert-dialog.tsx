@@ -1,70 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
-import { useRive, useStateMachineInput } from '@rive-app/react-canvas';
-import Image from 'next/image';
 
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
-
-function VantaBuddyAnimation() {
-  const [riveError, setRiveError] = useState(false);
-  const [svgError, setSvgError] = useState(false);
-
-  const { rive, RiveComponent } = useRive({
-    src: '/vantabuddy.riv',
-    stateMachines: 'vantabuddy',
-    autoplay: true,
-    onLoadError: () => {
-      setRiveError(true);
-    },
-  });
-
-  const turnleftInput = useStateMachineInput(rive, 'vantabuddy', 'turnleft');
-
-  useEffect(() => {
-    if (turnleftInput && !riveError) {
-      turnleftInput.fire();
-    }
-  }, [turnleftInput, riveError]);
-
-  if (riveError || !RiveComponent) {
-    if (svgError) {
-      return (
-        <Image
-          src="/icon1.png"
-          alt="VantaBuddy"
-          width={84}
-          height={84}
-          className="w-20 h-20"
-          onError={() => {
-            // If PNG also fails, we'll just show nothing
-            setSvgError(true);
-          }}
-        />
-      );
-    }
-    return (
-      <Image
-        src="/icon0.svg"
-        alt="VantaBuddy"
-        width={84}
-        height={84}
-        className="w-20 h-20"
-        onError={() => {
-          setSvgError(true);
-        }}
-      />
-    );
-  }
-
-  return (
-    <div className="w-20 h-20 pointer-events-none">
-      <RiveComponent />
-    </div>
-  );
-}
 
 function AlertDialog({
   ...props
@@ -115,21 +54,12 @@ function AlertDialogContent({
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(
-          'bg-[var(--card)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-70 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border-3 border-[#2454FF] cursor-default p-6 shadow-lg duration-200 sm:max-w-lg',
+          'bg-[var(--card)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-70 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-visible rounded-xl border-3 border-[#2454FF] cursor-default p-6 shadow-lg duration-200 sm:max-w-lg',
           className,
         )}
         {...props}
       >
         {children}
-        <div
-          style={{
-            top: '-25px',
-            right: '-25px',
-          }}
-          className="absolute w-20 h-20 rounded-full pointer-events-none p-1"
-        >
-          <VantaBuddyAnimation />
-        </div>
       </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   );
@@ -156,7 +86,7 @@ function AlertDialogFooter({
     <div
       data-slot="alert-dialog-footer"
       className={cn(
-        'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end',
+        'relative z-10 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end',
         className,
       )}
       {...props}
@@ -198,7 +128,7 @@ function AlertDialogAction({
     <AlertDialogPrimitive.Action
       className={cn(
         buttonVariants({ variant: 'destructive' }),
-        'rounded-lg',
+        'rounded-lg bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600/20',
         className,
       )}
       {...props}
@@ -214,7 +144,7 @@ function AlertDialogCancel({
     <AlertDialogPrimitive.Cancel
       className={cn(
         buttonVariants({ variant: 'outline' }),
-        'border-[#2454FF] text-[#2454FF] rounded-lg',
+        'rounded-lg border-[#2454FF] bg-white text-[#2454FF] hover:bg-[#2454FF]/10 hover:text-[#1E3A5F]',
         className,
       )}
       {...props}
