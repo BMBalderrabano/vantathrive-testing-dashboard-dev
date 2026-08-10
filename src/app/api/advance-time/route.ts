@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { postQaAdvanceLoyaltyExpiry } from '@/lib/talon-client'
-
 export async function POST(request: NextRequest) {
   try {
     const { user_id, hours, user_logged_in, process_workouts } =
@@ -44,13 +42,7 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json()
 
-    // Soft-fail: app time still advances even if Talon is misconfigured / rules missing.
-    // Requires Campaign Manager rules on event qa_advance_loyalty_expiry that use
-    // "Update loyalty points expiry date" for subledgers current_day_vp (start_of_day)
-    // and info_points_weekly (start_of_week).
-    const talon = await postQaAdvanceLoyaltyExpiry(user_id, hours)
-
-    return NextResponse.json({ ...data, talon })
+    return NextResponse.json(data)
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },

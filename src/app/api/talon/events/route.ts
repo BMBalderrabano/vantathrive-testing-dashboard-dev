@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import {
   TALON_EVENT_TYPES,
-  QA_ADVANCE_LOYALTY_EXPIRY_EVENT,
-  buildQaAdvanceLoyaltyExpiryAttributes,
   loadProfileTimezone,
   postTalonEvent,
   type TalonEventType,
@@ -13,13 +11,11 @@ import { getStartOfDayUtc, getStartOfWeekUtc } from '@/lib/talon-time'
 interface TalonEventRequest {
   profileId?: string
   type?: string
-  /** Hours to simulate ahead for qa_advance_loyalty_expiry (default 0). */
-  hours?: number
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { profileId, type, hours }: TalonEventRequest = await request.json()
+    const { profileId, type }: TalonEventRequest = await request.json()
 
     if (typeof profileId !== 'string' || profileId.trim() === '') {
       return NextResponse.json(
@@ -38,29 +34,18 @@ export async function POST(request: NextRequest) {
     }
 
     const eventType = type as TalonEventType
-    let attributes: Record<string, boolean | string>
+    const attributes: Record<string, boolean | string> = { [eventType]: true }
 
-    if (eventType === QA_ADVANCE_LOYALTY_EXPIRY_EVENT) {
-      const advanceHours =
-        typeof hours === 'number' && Number.isFinite(hours) ? hours : 0
-      attributes = await buildQaAdvanceLoyaltyExpiryAttributes(
-        profileId,
-        advanceHours,
-      )
-    } else {
-      attributes = { [eventType]: true }
+    if (
+      eventType === 'exercise_daily_completion' ||
+      eventType === 'check_in_question'
+    ) {
+      const timezone = await loadProfileTimezone(profileId)
 
-      if (
-        eventType === 'exercise_daily_completion' ||
-        eventType === 'check_in_question'
-      ) {
-        const timezone = await loadProfileTimezone(profileId)
-
-        if (eventType === 'exercise_daily_completion') {
-          attributes.start_of_day = getStartOfDayUtc(timezone)
-        } else {
-          attributes.start_of_week = getStartOfWeekUtc(timezone)
-        }
+      if (eventType === 'exercise_daily_completion') {
+        attributes.start_of_day = getStartOfDayUtc(timezone)
+      } else {
+        attributes.start_of_week = getStartOfWeekUtc(timezone)
       }
     }
 

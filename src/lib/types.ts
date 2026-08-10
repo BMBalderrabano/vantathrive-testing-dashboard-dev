@@ -62,15 +62,6 @@ export interface Appointment {
   created_at: string
 }
 
-export interface AdvanceTimeTalonResult {
-  skipped?: boolean
-  reason?: string
-  status?: number
-  body?: unknown
-  type?: string
-  attributes?: Record<string, boolean | string>
-}
-
 export interface AdvanceTimeResponse {
   success: boolean
   user_id: string
@@ -86,8 +77,6 @@ export interface AdvanceTimeResponse {
   total_records_modified: number
   cron_triggered: boolean
   message: string
-  /** Soft-fail result of qa_advance_loyalty_expiry after Supabase advance_time. */
-  talon?: AdvanceTimeTalonResult
 }
 
 export interface MarkAsAttendedResponse {

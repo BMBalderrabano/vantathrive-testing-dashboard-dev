@@ -307,7 +307,6 @@ export async function processHabit(
 export async function trackTalonEvent(
   profileId: string,
   type: TalonEventType,
-  options?: { hours?: number },
 ): Promise<TrackTalonEventResult> {
   let response: Response
   try {
@@ -319,7 +318,6 @@ export async function trackTalonEvent(
       body: JSON.stringify({
         profileId,
         type,
-        ...(typeof options?.hours === 'number' ? { hours: options.hours } : {}),
       }),
     })
   } catch (error) {

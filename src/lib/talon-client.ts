@@ -1,18 +1,9 @@
 import 'server-only'
 
 import { supabaseAdmin } from '@/lib/supabase/service-role'
-import {
-  QA_ADVANCE_LOYALTY_EXPIRY_EVENT,
-  type TalonEventType,
-} from '@/lib/talon-constants'
-import {
-  formatTalonTime,
-  getStartOfDayUtc,
-  getStartOfWeekUtc,
-} from '@/lib/talon-time'
+import { type TalonEventType } from '@/lib/talon-constants'
 
 export {
-  QA_ADVANCE_LOYALTY_EXPIRY_EVENT,
   TALON_EVENT_TYPES,
   type TalonEventType,
 } from '@/lib/talon-constants'
@@ -71,22 +62,6 @@ function getTalonConfig():
   return { ok: true, apiKey, baseUrl }
 }
 
-/** Build attributes for qa_advance_loyalty_expiry at simulated now = wall clock + hours. */
-export async function buildQaAdvanceLoyaltyExpiryAttributes(
-  profileId: string,
-  hours: number,
-): Promise<Record<string, boolean | string>> {
-  const timezone = await loadProfileTimezone(profileId)
-  const simulatedNow = new Date(Date.now() + hours * 60 * 60 * 1000)
-
-  return {
-    [QA_ADVANCE_LOYALTY_EXPIRY_EVENT]: true,
-    start_of_day: getStartOfDayUtc(timezone, simulatedNow),
-    start_of_week: getStartOfWeekUtc(timezone, simulatedNow),
-    qa_loyalty_now: formatTalonTime(simulatedNow),
-  }
-}
-
 export async function postTalonEvent(params: {
   profileId: string
   type: TalonEventType
@@ -136,33 +111,4 @@ export async function postTalonEvent(params: {
       attributes: params.attributes,
     }
   }
-}
-
-/**
- * Fire qa_advance_loyalty_expiry so Campaign Manager rules can run
- * "Update loyalty points expiry date" for current_day_vp / info_points_weekly
- * using start_of_day / start_of_week at simulated time (now + hours).
- */
-export async function postQaAdvanceLoyaltyExpiry(
-  profileId: string,
-  hours: number,
-): Promise<TalonEventCallResult> {
-  if (!Number.isFinite(hours)) {
-    return {
-      skipped: true,
-      reason: 'hours must be a finite number',
-      type: QA_ADVANCE_LOYALTY_EXPIRY_EVENT,
-    }
-  }
-
-  const attributes = await buildQaAdvanceLoyaltyExpiryAttributes(
-    profileId,
-    hours,
-  )
-
-  return postTalonEvent({
-    profileId,
-    type: QA_ADVANCE_LOYALTY_EXPIRY_EVENT,
-    attributes,
-  })
 }

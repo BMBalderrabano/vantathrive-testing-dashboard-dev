@@ -581,14 +581,6 @@ function DashboardContent() {
           {/* Time Advancement Controls */}
           <div className='bg-white rounded-lg shadow p-6 mb-6'>
             <h2 className='text-xl font-semibold mb-4'>Time Advancement</h2>
-            <p className='text-sm text-gray-600 mb-4'>
-              Also fires Talon event <code className='text-xs bg-gray-100 px-1 rounded'>qa_advance_loyalty_expiry</code> with
-              simulated <code className='text-xs bg-gray-100 px-1 rounded'>start_of_day</code> /{' '}
-              <code className='text-xs bg-gray-100 px-1 rounded'>start_of_week</code>. Campaign Manager needs rules that
-              run <strong>Update loyalty points expiry date</strong> for subledgers{' '}
-              <code className='text-xs bg-gray-100 px-1 rounded'>current_day_vp</code> and{' '}
-              <code className='text-xs bg-gray-100 px-1 rounded'>info_points_weekly</code>.
-            </p>
             <div className='flex flex-col md:flex-row gap-4 items-end'>
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-2'>
@@ -672,27 +664,6 @@ function DashboardContent() {
                   <div>
                     Cron Triggered: {lastResult.cron_triggered ? "Yes" : "No"}
                   </div>
-                  {lastResult.talon && (
-                    <div
-                      className={
-                        lastResult.talon.skipped ||
-                        (lastResult.talon.status !== undefined &&
-                          lastResult.talon.status >= 400)
-                          ? 'text-amber-700'
-                          : 'text-green-700'
-                      }
-                    >
-                      Talon loyalty expiry:{' '}
-                      {lastResult.talon.skipped
-                        ? `skipped (${lastResult.talon.reason ?? 'unknown'})`
-                        : `HTTP ${lastResult.talon.status ?? '?'}`}
-                      {lastResult.talon.attributes && (
-                        <pre className='mt-1 text-xs text-gray-600 whitespace-pre-wrap'>
-                          {JSON.stringify(lastResult.talon.attributes, null, 2)}
-                        </pre>
-                      )}
-                    </div>
-                  )}
                   {lastResult.results.map((result, index) => (
                     <div
                       key={index}
