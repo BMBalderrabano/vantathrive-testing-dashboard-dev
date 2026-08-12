@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import {
   TALON_EVENT_TYPES,
+  buildQaAdvanceTimeAttributes,
   loadProfileTimezone,
   postTalonEvent,
   type TalonEventType,
@@ -11,11 +12,14 @@ import { getStartOfDayUtc, getStartOfWeekUtc } from '@/lib/talon-time'
 interface TalonEventRequest {
   profileId?: string
   type?: string
+  /** When type is qa_advance_time, also set qa_advance_week:true. */
+  advanceWeek?: boolean
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { profileId, type }: TalonEventRequest = await request.json()
+    const { profileId, type, advanceWeek }: TalonEventRequest =
+      await request.json()
 
     if (typeof profileId !== 'string' || profileId.trim() === '') {
       return NextResponse.json(
@@ -34,9 +38,13 @@ export async function POST(request: NextRequest) {
     }
 
     const eventType = type as TalonEventType
-    const attributes: Record<string, boolean | string> = { [eventType]: true }
+    let attributes: Record<string, boolean | string> = { [eventType]: true }
 
-    if (
+    if (eventType === 'qa_advance_time') {
+      attributes = buildQaAdvanceTimeAttributes({
+        advanceWeek: advanceWeek === true,
+      })
+    } else if (
       eventType === 'exercise_daily_completion' ||
       eventType === 'check_in_question'
     ) {

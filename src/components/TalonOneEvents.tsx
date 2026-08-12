@@ -12,28 +12,44 @@ interface TalonEventResult {
   status: number;
   body: unknown;
   type: TalonEventType;
+  advanceWeek?: boolean;
   at: string;
 }
 
+const STANDARD_EVENT_TYPES = TALON_EVENT_TYPES.filter(
+  (type) => type !== "qa_advance_time",
+);
+
 export default function TalonOneEvents() {
   const { selectedUserId, isHydrated } = useQaContext();
-  const [loadingType, setLoadingType] = useState<TalonEventType | null>(null);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<TalonEventResult | null>(null);
 
   const profileId = isHydrated ? selectedUserId : "";
-  const buttonsDisabled = !profileId || loadingType !== null;
+  const buttonsDisabled = !profileId || loadingKey !== null;
 
-  const handleFireEvent = async (type: TalonEventType) => {
+  const handleFireEvent = async (
+    type: TalonEventType,
+    options?: { advanceWeek?: boolean },
+  ) => {
     if (!profileId) return;
 
-    setLoadingType(type);
+    const loadingId =
+      type === "qa_advance_time"
+        ? options?.advanceWeek
+          ? "qa_advance_time:week"
+          : "qa_advance_time:day"
+        : type;
+
+    setLoadingKey(loadingId);
 
     try {
-      const { status, body } = await trackTalonEvent(profileId, type);
+      const { status, body } = await trackTalonEvent(profileId, type, options);
       setLastResult({
         status,
         body,
         type,
+        advanceWeek: options?.advanceWeek,
         at: new Date().toISOString(),
       });
     } catch (err) {
@@ -41,10 +57,11 @@ export default function TalonOneEvents() {
         status: 0,
         body: { error: err instanceof Error ? err.message : String(err) },
         type,
+        advanceWeek: options?.advanceWeek,
         at: new Date().toISOString(),
       });
     } finally {
-      setLoadingType(null);
+      setLoadingKey(null);
     }
   };
 
@@ -73,8 +90,8 @@ export default function TalonOneEvents() {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {TALON_EVENT_TYPES.map((type) => {
-              const isActive = loadingType === type;
+            {STANDARD_EVENT_TYPES.map((type) => {
+              const isActive = loadingKey === type;
               const isReset = type === "reset_user";
               const label = isReset ? "reset" : type;
 
@@ -103,6 +120,48 @@ export default function TalonOneEvents() {
                 </button>
               );
             })}
+
+            <button
+              type="button"
+              onClick={() => handleFireEvent("qa_advance_time")}
+              disabled={buttonsDisabled}
+              className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${
+                buttonsDisabled
+                  ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+              }`}
+            >
+              {loadingKey === "qa_advance_time:day" ? (
+                <span className="flex items-center justify-center">
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Sending...
+                </span>
+              ) : (
+                "qa_advance_time (day)"
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleFireEvent("qa_advance_time", { advanceWeek: true })
+              }
+              disabled={buttonsDisabled}
+              className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${
+                buttonsDisabled
+                  ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+              }`}
+            >
+              {loadingKey === "qa_advance_time:week" ? (
+                <span className="flex items-center justify-center">
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Sending...
+                </span>
+              ) : (
+                "qa_advance_time (day+week)"
+              )}
+            </button>
           </div>
         </div>
 
@@ -116,6 +175,11 @@ export default function TalonOneEvents() {
                 </div>
                 <div className="text-sm text-gray-700">
                   <span className="font-medium">Event:</span> {lastResult.type}
+                  {lastResult.type === "qa_advance_time"
+                    ? lastResult.advanceWeek
+                      ? " (day+week)"
+                      : " (day)"
+                    : null}
                 </div>
                 <pre className="text-xs text-gray-800 whitespace-pre-wrap break-words">
                   {JSON.stringify(lastResult.body, null, 2)}

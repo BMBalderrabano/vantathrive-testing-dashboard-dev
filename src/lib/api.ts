@@ -307,6 +307,7 @@ export async function processHabit(
 export async function trackTalonEvent(
   profileId: string,
   type: TalonEventType,
+  options?: { advanceWeek?: boolean },
 ): Promise<TrackTalonEventResult> {
   let response: Response
   try {
@@ -318,6 +319,9 @@ export async function trackTalonEvent(
       body: JSON.stringify({
         profileId,
         type,
+        ...(type === 'qa_advance_time' && options?.advanceWeek
+          ? { advanceWeek: true }
+          : {}),
       }),
     })
   } catch (error) {

@@ -5,6 +5,8 @@ import { type TalonEventType } from '@/lib/talon-constants'
 
 export {
   TALON_EVENT_TYPES,
+  buildQaAdvanceTimeAttributes,
+  qaAdvanceAttrsFromHours,
   type TalonEventType,
 } from '@/lib/talon-constants'
 
