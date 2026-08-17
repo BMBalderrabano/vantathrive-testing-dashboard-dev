@@ -10,6 +10,7 @@ export {
   TALON_EVENT_TYPES,
   TALON_V2_EVENT_TYPES,
   TALON_V2_CAMPAIGN_LABELS,
+  v2EventFlagAttribute,
   buildQaAdvanceTimeAttributes,
   qaAdvanceAttrsFromHours,
   buildExerciseExternalSessionId,

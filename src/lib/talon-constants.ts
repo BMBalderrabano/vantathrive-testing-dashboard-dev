@@ -29,6 +29,15 @@ export const TALON_V2_CAMPAIGN_LABELS: Record<TalonV2EventType, string> = {
   reset_user: 'Reset User (81)',
 }
 
+/**
+ * Event-entity boolean flag. App 2 registers Complete Exercise as
+ * `exerciseCompleted` (not the Integration API type `exercise_completed`).
+ */
+export function v2EventFlagAttribute(type: TalonV2EventType): string {
+  if (type === 'exercise_completed') return 'exerciseCompleted'
+  return type
+}
+
 /** Campaign 47 / V2 Advance Time: reset ephemeral subledgers after a calendar jump. */
 export function buildQaAdvanceTimeAttributes(options?: {
   advanceWeek?: boolean

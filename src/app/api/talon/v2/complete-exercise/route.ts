@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
     const endOfWeek = getEndOfWeekUtc(timezone)
     const externalSessionID = buildExerciseExternalSessionId(exerciseIdValue)
     const attributes = {
-      exercise_completed: true,
+      exerciseCompleted: true,
       isDayComplete,
       endOfWeek,
       externalSessionID,

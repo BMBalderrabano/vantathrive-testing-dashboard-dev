@@ -6,6 +6,7 @@ import {
   buildQaAdvanceTimeAttributes,
   loadProfileTimezone,
   postTalonEvent,
+  v2EventFlagAttribute,
   type TalonAttributeValue,
   type TalonV2EventType,
 } from '@/lib/talon-client'
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     const eventType = type as TalonV2EventType
     const timezone = await loadProfileTimezone(profileId)
     let attributes: Record<string, TalonAttributeValue> = {
-      [eventType]: true,
+      [v2EventFlagAttribute(eventType)]: true,
     }
 
     if (eventType === 'qa_advance_time') {
