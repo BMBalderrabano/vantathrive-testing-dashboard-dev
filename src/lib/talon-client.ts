@@ -1,24 +1,35 @@
 import 'server-only'
 
 import { supabaseAdmin } from '@/lib/supabase/service-role'
-import { type TalonEventType } from '@/lib/talon-constants'
+import {
+  type TalonEventType,
+  type TalonV2EventType,
+} from '@/lib/talon-constants'
 
 export {
   TALON_EVENT_TYPES,
+  TALON_V2_EVENT_TYPES,
+  TALON_V2_CAMPAIGN_LABELS,
   buildQaAdvanceTimeAttributes,
   qaAdvanceAttrsFromHours,
+  buildExerciseExternalSessionId,
   type TalonEventType,
+  type TalonV2EventType,
 } from '@/lib/talon-constants'
 
 export const DEFAULT_TALON_BASE_URL = 'https://medvanta.us-east4.talon.one'
+
+export type TalonApp = 'v1' | 'v2'
+
+export type TalonAttributeValue = boolean | string | number
 
 export interface TalonEventCallResult {
   skipped?: boolean
   reason?: string
   status?: number
   body?: unknown
-  type?: TalonEventType
-  attributes?: Record<string, boolean | string>
+  type?: string
+  attributes?: Record<string, TalonAttributeValue>
 }
 
 export async function loadProfileTimezone(
@@ -49,12 +60,22 @@ export async function loadProfileTimezone(
   }
 }
 
-function getTalonConfig():
+function getTalonConfig(
+  app: TalonApp = 'v1',
+):
   | { ok: true; apiKey: string; baseUrl: string }
   | { ok: false; reason: string } {
-  const apiKey = process.env.TALON_ONE_VANTATHRIVE_DEV
+  const apiKey =
+    app === 'v2'
+      ? process.env.TALON_ONE_VANTATHRIVE_DEV_2
+      : process.env.TALON_ONE_VANTATHRIVE_DEV
+
   if (!apiKey) {
-    return { ok: false, reason: 'TALON_ONE_VANTATHRIVE_DEV is not configured' }
+    const envName =
+      app === 'v2'
+        ? 'TALON_ONE_VANTATHRIVE_DEV_2'
+        : 'TALON_ONE_VANTATHRIVE_DEV'
+    return { ok: false, reason: `${envName} is not configured` }
   }
 
   const baseUrl = (
@@ -66,10 +87,11 @@ function getTalonConfig():
 
 export async function postTalonEvent(params: {
   profileId: string
-  type: TalonEventType
-  attributes: Record<string, boolean | string>
+  type: TalonEventType | TalonV2EventType | string
+  attributes: Record<string, TalonAttributeValue>
+  app?: TalonApp
 }): Promise<TalonEventCallResult> {
-  const config = getTalonConfig()
+  const config = getTalonConfig(params.app ?? 'v1')
   if (!config.ok) {
     return { skipped: true, reason: config.reason, type: params.type }
   }

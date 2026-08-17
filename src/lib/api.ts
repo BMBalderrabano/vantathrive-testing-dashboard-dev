@@ -19,11 +19,14 @@ import {
   ReminderPreferencesResponse,
   UpdateReminderPreferencesRequest
 } from './types'
-import type { TalonEventType } from './talon-constants'
+import type { TalonEventType, TalonV2EventType } from './talon-constants'
 
 export {
   TALON_EVENT_TYPES,
+  TALON_V2_EVENT_TYPES,
+  TALON_V2_CAMPAIGN_LABELS,
   type TalonEventType,
+  type TalonV2EventType,
 } from './talon-constants'
 
 export interface ServeQuestionRequest {
@@ -80,7 +83,8 @@ export async function advanceTime(
   userId: string,
   hours: number,
   userLoggedIn: boolean = false,
-  processWorkouts: boolean = false
+  processWorkouts: boolean = false,
+  options?: { skipTalonSoftFire?: boolean },
 ): Promise<AdvanceTimeResponse> {
   const response = await fetch('/api/advance-time', {
     method: 'POST',
@@ -92,6 +96,7 @@ export async function advanceTime(
       hours,
       user_logged_in: userLoggedIn,
       process_workouts: processWorkouts,
+      ...(options?.skipTalonSoftFire ? { skipTalonSoftFire: true } : {}),
     }),
   })
 
@@ -338,6 +343,114 @@ export async function trackTalonEvent(
 
   const text = await response.text()
   return { status: response.status, body: text }
+}
+
+export async function trackTalonV2Event(
+  profileId: string,
+  type: TalonV2EventType,
+  extra?: Record<string, unknown>,
+): Promise<TrackTalonEventResult> {
+  let response: Response
+  try {
+    response = await fetch('/api/talon/v2/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profileId, type, ...extra }),
+    })
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : 'Network error calling Talon V2 events API',
+    )
+  }
+
+  const contentType = response.headers.get('content-type')
+  if (contentType && contentType.includes('application/json')) {
+    const body = await response.json()
+    return { status: response.status, body }
+  }
+
+  const text = await response.text()
+  return { status: response.status, body: text }
+}
+
+export interface TalonV2TodayExercise {
+  exerciseId: number
+  name: string
+}
+
+export async function getTalonV2TodayExercises(
+  profileId: string,
+): Promise<{
+  localDate: string
+  timezone: string
+  exercises: TalonV2TodayExercise[]
+}> {
+  const response = await fetch(
+    `/api/talon/v2/complete-exercise?profileId=${encodeURIComponent(profileId)}`,
+  )
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(
+      (body as { error?: string }).error ||
+        `HTTP error! status: ${response.status}`,
+    )
+  }
+  return body
+}
+
+export async function completeExerciseV2(
+  profileId: string,
+  exerciseId: number,
+): Promise<TrackTalonEventResult> {
+  const response = await fetch('/api/talon/v2/complete-exercise', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profileId, exerciseId }),
+  })
+  const body = await response.json().catch(() => ({}))
+  return { status: response.status, body }
+}
+
+export async function assignProgramV2(
+  profileId: string,
+  options?: { program_template_id?: string; organization_id?: string },
+): Promise<TrackTalonEventResult> {
+  const response = await fetch('/api/talon/v2/assign-program', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      profileId,
+      program_template_id: options?.program_template_id,
+      organization_id: options?.organization_id,
+    }),
+  })
+  const body = await response.json().catch(() => ({}))
+  return { status: response.status, body }
+}
+
+/** Advance Supabase 168h (skip V1 soft-fire) then fire V2 qa_advance_time day+week. */
+export async function advanceTimeV2(
+  profileId: string,
+): Promise<TrackTalonEventResult> {
+  try {
+    await advanceTime(profileId, 168, false, false, {
+      skipTalonSoftFire: true,
+    })
+  } catch (error) {
+    return {
+      status: 0,
+      body: {
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Advance time failed; Talon V2 not called',
+      },
+    }
+  }
+
+  return trackTalonV2Event(profileId, 'qa_advance_time')
 }
 
 export async function resetUserData(

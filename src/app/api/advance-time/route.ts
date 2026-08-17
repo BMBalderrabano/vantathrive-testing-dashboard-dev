@@ -7,8 +7,13 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    const { user_id, hours, user_logged_in, process_workouts } =
-      await request.json()
+    const {
+      user_id,
+      hours,
+      user_logged_in,
+      process_workouts,
+      skipTalonSoftFire,
+    } = await request.json()
 
     if (typeof user_id !== 'string' || user_id.trim() === '') {
       return NextResponse.json(
@@ -48,7 +53,8 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json()
 
-    const qaAttrs = qaAdvanceAttrsFromHours(hours)
+    const skipSoftFire = skipTalonSoftFire === true
+    const qaAttrs = skipSoftFire ? null : qaAdvanceAttrsFromHours(hours)
     if (qaAttrs) {
       try {
         const talonResult = await postTalonEvent({
@@ -73,6 +79,11 @@ export async function POST(request: NextRequest) {
           error: error instanceof Error ? error.message : String(error),
         })
       }
+    } else if (skipSoftFire) {
+      console.log('qa_advance_time soft-fire skipped by request', {
+        user_id,
+        hours,
+      })
     }
 
     return NextResponse.json(data)
