@@ -41,6 +41,7 @@ export default function TalonOneEvents() {
   const [todayMeta, setTodayMeta] = useState<{
     localDate: string;
     timezone: string;
+    detail?: string;
   } | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<number | "">(
     "",
@@ -66,7 +67,11 @@ export default function TalonOneEvents() {
     try {
       const data = await getTalonV2TodayExercises(profileId);
       setTodayExercises(data.exercises);
-      setTodayMeta({ localDate: data.localDate, timezone: data.timezone });
+      setTodayMeta({
+        localDate: data.localDate,
+        timezone: data.timezone,
+        detail: data.detail,
+      });
       setSelectedExerciseId((current) => {
         if (
           typeof current === "number" &&
@@ -482,7 +487,7 @@ export default function TalonOneEvents() {
                   {exercisesLoading
                     ? "Loading..."
                     : todayExercises.length === 0
-                      ? "No incomplete exercises today"
+                      ? todayMeta?.detail || "No incomplete exercises today"
                       : "Select exercise"}
                 </option>
                 {todayExercises.map((ex) => (

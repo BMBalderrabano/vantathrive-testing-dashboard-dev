@@ -386,6 +386,7 @@ export async function getTalonV2TodayExercises(
   localDate: string
   timezone: string
   exercises: TalonV2TodayExercise[]
+  detail?: string
 }> {
   const response = await fetch(
     `/api/talon/v2/complete-exercise?profileId=${encodeURIComponent(profileId)}`,

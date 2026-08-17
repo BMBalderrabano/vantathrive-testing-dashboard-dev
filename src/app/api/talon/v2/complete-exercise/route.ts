@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { supabaseAdminLegacy as supabaseAdmin } from '@/lib/supabase/service-role'
+import { supabaseAdmin } from '@/lib/supabase/service-role'
 import {
   buildExerciseExternalSessionId,
   loadProfileTimezone,
@@ -9,74 +9,113 @@ import {
 import {
   getEndOfWeekUtc,
   getLocalDateString,
+  resolveTimezone,
 } from '@/lib/talon-time'
 
-type WorkoutRow = {
-  exercise_id: number | null
-  status: string | null
-  workout_date: string | null
+type ServeExercise = {
+  id: number
+  exercise_name?: string | null
+  set_amount?: number | null
+  is_completed?: boolean
 }
 
-async function loadTodayWorkouts(
+type ServeDailyWorkout = {
+  success?: boolean
+  error?: string
+  message?: string
+  is_rest?: boolean
+  last_set_index?: number
+  is_complete?: boolean
+  exercises?: ServeExercise[]
+}
+
+function asServe(data: unknown): ServeDailyWorkout {
+  if (!data || typeof data !== 'object') return {}
+  return data as ServeDailyWorkout
+}
+
+function exerciseId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value)
+  return null
+}
+
+async function serveToday(
   profileId: string,
   localDate: string,
-): Promise<WorkoutRow[]> {
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .select('exercise_id, status, workout_date')
-    .eq('user_id', profileId)
-    .eq('workout_date', localDate)
-
+): Promise<ServeDailyWorkout> {
+  const { data, error } = await supabaseAdmin.rpc('serve_daily_workout', {
+    p_user_id: profileId,
+    p_date: localDate,
+  })
   if (error) {
     throw new Error(error.message)
   }
-
-  return (data ?? []) as WorkoutRow[]
+  return asServe(data)
 }
 
-function uniqueExerciseIds(rows: WorkoutRow[]): number[] {
-  const ids = new Set<number>()
-  for (const row of rows) {
-    if (typeof row.exercise_id === 'number') ids.add(row.exercise_id)
+function incompleteExercises(served: ServeDailyWorkout): Array<{
+  exerciseId: number
+  name: string
+  setAmount: number
+}> {
+  if (served.is_rest) return []
+  const list = Array.isArray(served.exercises) ? served.exercises : []
+  const out: Array<{ exerciseId: number; name: string; setAmount: number }> = []
+  for (const row of list) {
+    const id = exerciseId(row?.id)
+    if (id === null) continue
+    if (row.is_completed === true) continue
+    out.push({
+      exerciseId: id,
+      name: row.exercise_name?.trim() || `Exercise ${id}`,
+      setAmount: Number(row.set_amount) || 0,
+    })
   }
-  return [...ids]
+  return out
 }
 
-function incompleteExerciseIds(rows: WorkoutRow[]): number[] {
-  const byExercise = new Map<number, { anyIncomplete: boolean }>()
-  for (const row of rows) {
-    if (typeof row.exercise_id !== 'number') continue
-    const entry = byExercise.get(row.exercise_id) ?? { anyIncomplete: false }
-    if (row.status !== 'completed') entry.anyIncomplete = true
-    byExercise.set(row.exercise_id, entry)
+/** Sets still needed on complete_set to finish `exerciseId` (includes earlier incomplete sets). */
+function remainingSetsThroughExercise(
+  served: ServeDailyWorkout,
+  targetId: number,
+): number | null {
+  const list = Array.isArray(served.exercises) ? served.exercises : []
+  let end = 0
+  let found = false
+  for (const row of list) {
+    const id = exerciseId(row?.id)
+    const sets = Number(row?.set_amount) || 0
+    end += sets
+    if (id === targetId) {
+      found = true
+      break
+    }
   }
-  return [...byExercise.entries()]
-    .filter(([, v]) => v.anyIncomplete)
-    .map(([id]) => id)
+  if (!found) return null
+  const last = Number(served.last_set_index) || 0
+  return Math.max(0, end - last)
 }
 
-/**
- * Mirrors test_mark_exercise_as_completed for a target profile.
- * The RPC uses auth.uid(); service_role must update by user_id instead.
- */
-async function markExerciseCompleted(
+async function completeSets(
   profileId: string,
-  exerciseId: number,
   localDate: string,
+  count: number,
 ): Promise<number> {
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .update({ status: 'completed', updated_at: new Date().toISOString() })
-    .eq('user_id', profileId)
-    .eq('workout_date', localDate)
-    .eq('exercise_id', exerciseId)
-    .select('id')
-
-  if (error) {
-    throw new Error(error.message)
+  for (let i = 0; i < count; i += 1) {
+    const { data, error } = await supabaseAdmin.rpc('complete_set', {
+      p_user_id: profileId,
+      p_date: localDate,
+    })
+    if (error) {
+      throw new Error(error.message)
+    }
+    const body = asServe(data)
+    if (body.success === false) {
+      throw new Error(body.message || body.error || 'complete_set failed')
+    }
   }
-
-  return data?.length ?? 0
+  return count
 }
 
 export async function GET(request: NextRequest) {
@@ -90,32 +129,32 @@ export async function GET(request: NextRequest) {
     }
 
     const timezone = await loadProfileTimezone(profileId)
+    const resolvedTimezone = resolveTimezone(timezone)
     const localDate = getLocalDateString(timezone)
-    const rows = await loadTodayWorkouts(profileId, localDate)
-    const incompleteIds = incompleteExerciseIds(rows)
+    const served = await serveToday(profileId, localDate)
 
-    const exerciseIds = uniqueExerciseIds(rows)
-    let names = new Map<number, string>()
-    if (exerciseIds.length > 0) {
-      const { data: exercises } = await supabaseAdmin
-        .from('exercises')
-        .select('id, exercise_name')
-        .in('id', exerciseIds)
-      names = new Map(
-        (exercises ?? []).map((e: { id: number; exercise_name: string | null }) => [
-          e.id,
-          e.exercise_name ?? `Exercise ${e.id}`,
-        ]),
-      )
+    if (served.success === false) {
+      return NextResponse.json({
+        localDate,
+        timezone: resolvedTimezone,
+        exercises: [],
+        detail: served.message || served.error || 'serve_daily_workout failed',
+      })
+    }
+
+    const exercises = incompleteExercises(served)
+    let detail: string | undefined
+    if (served.is_rest) {
+      detail = 'Rest day — no exercises scheduled'
+    } else if (exercises.length === 0) {
+      detail = 'No incomplete exercises today'
     }
 
     return NextResponse.json({
       localDate,
-      timezone: timezone ?? 'UTC',
-      exercises: incompleteIds.map((id) => ({
-        exerciseId: id,
-        name: names.get(id) ?? `Exercise ${id}`,
-      })),
+      timezone: resolvedTimezone,
+      exercises,
+      detail,
     })
   } catch (error) {
     console.error('V2 today-exercises GET error:', error)
@@ -130,7 +169,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const profileId = body.profileId as string | undefined
-    const exerciseId = body.exerciseId as number | undefined
+    const exerciseIdValue = body.exerciseId as number | undefined
 
     if (typeof profileId !== 'string' || profileId.trim() === '') {
       return NextResponse.json(
@@ -138,7 +177,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       )
     }
-    if (typeof exerciseId !== 'number' || !Number.isFinite(exerciseId)) {
+    if (typeof exerciseIdValue !== 'number' || !Number.isFinite(exerciseIdValue)) {
       return NextResponse.json(
         { error: 'exerciseId must be a finite number' },
         { status: 400 },
@@ -147,37 +186,51 @@ export async function POST(request: NextRequest) {
 
     const timezone = await loadProfileTimezone(profileId)
     const localDate = getLocalDateString(timezone)
-    const beforeRows = await loadTodayWorkouts(profileId, localDate)
-    const incompleteBefore = incompleteExerciseIds(beforeRows)
+    const before = await serveToday(profileId, localDate)
 
-    if (!incompleteBefore.includes(exerciseId)) {
+    if (before.success === false) {
+      return NextResponse.json(
+        { error: before.message || before.error || 'serve_daily_workout failed' },
+        { status: 400 },
+      )
+    }
+
+    const incompleteBefore = incompleteExercises(before)
+    if (!incompleteBefore.some((e) => e.exerciseId === exerciseIdValue)) {
       return NextResponse.json(
         {
-          error: `Exercise ${exerciseId} is not an incomplete exercise for ${localDate}`,
+          error: `Exercise ${exerciseIdValue} is not an incomplete exercise for ${localDate}`,
         },
         { status: 400 },
       )
     }
 
-    const updatedRows = await markExerciseCompleted(
-      profileId,
-      exerciseId,
-      localDate,
-    )
-    if (updatedRows === 0) {
+    const remaining = remainingSetsThroughExercise(before, exerciseIdValue)
+    if (remaining === null || remaining === 0) {
       return NextResponse.json(
         {
-          error: `No workout rows updated for exercise ${exerciseId} on ${localDate}`,
+          error: `No remaining sets to complete for exercise ${exerciseIdValue} on ${localDate}`,
+        },
+        { status: 400 },
+      )
+    }
+
+    const completedSets = await completeSets(profileId, localDate, remaining)
+    const after = await serveToday(profileId, localDate)
+    const incompleteAfter = incompleteExercises(after)
+    if (incompleteAfter.some((e) => e.exerciseId === exerciseIdValue)) {
+      return NextResponse.json(
+        {
+          error: `Exercise ${exerciseIdValue} still incomplete after complete_set`,
+          db: { completedSets, localDate, remaining },
         },
         { status: 500 },
       )
     }
 
-    const afterRows = await loadTodayWorkouts(profileId, localDate)
-    const incompleteAfter = incompleteExerciseIds(afterRows)
     const isDayComplete = incompleteAfter.length === 0
     const endOfWeek = getEndOfWeekUtc(timezone)
-    const externalSessionID = buildExerciseExternalSessionId(exerciseId)
+    const externalSessionID = buildExerciseExternalSessionId(exerciseIdValue)
     const attributes = {
       exercise_completed: true,
       isDayComplete,
@@ -196,7 +249,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: talonResult.reason,
-          db: { updatedRows, localDate, isDayComplete },
+          db: { completedSets, localDate, isDayComplete },
         },
         { status: 500 },
       )
@@ -206,7 +259,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Talon V2 exercise_completed failed after DB mark',
-          db: { updatedRows, localDate, isDayComplete },
+          db: { completedSets, localDate, isDayComplete },
           talon: talonResult.body,
           attributes,
         },
@@ -216,7 +269,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      db: { updatedRows, localDate, isDayComplete },
+      db: { completedSets, localDate, isDayComplete },
       attributes,
       talon: talonResult.body,
       status: talonResult.status,
