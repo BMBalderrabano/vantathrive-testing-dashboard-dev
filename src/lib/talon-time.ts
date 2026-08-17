@@ -74,7 +74,7 @@ export function getEndOfWeekUtc(
   return formatTalonTime(end)
 }
 
-/** programStartDate: calendar date at UTC midnight. */
+/** Event attr program_start_date: calendar date at UTC midnight (ISO Z). */
 export function programStartDateToTalonUtc(startDate: string): string {
   const day = startDate.trim().slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {

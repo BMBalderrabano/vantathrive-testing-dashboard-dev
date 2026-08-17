@@ -105,10 +105,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const programStartDate = programStartDateToTalonUtc(startDate)
+    const program_start_date = programStartDateToTalonUtc(startDate)
     const attributes = {
       program_change: true,
-      programStartDate,
+      program_start_date,
     }
 
     const talonResult = await postTalonEvent({

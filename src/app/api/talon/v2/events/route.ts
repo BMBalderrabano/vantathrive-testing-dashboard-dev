@@ -17,7 +17,7 @@ import {
 interface TalonV2EventRequest {
   profileId?: string
   type?: string
-  /** Required for program_change when not orchestrated elsewhere. */
+  /** Calendar YYYY-MM-DD; mapped to Talon event attr program_start_date. */
   programStartDate?: string
   /** Required for exercise_completed when not orchestrated elsewhere. */
   exerciseId?: number
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         )
       }
       try {
-        attributes.programStartDate = programStartDateToTalonUtc(
+        attributes.program_start_date = programStartDateToTalonUtc(
           body.programStartDate,
         )
       } catch (error) {
