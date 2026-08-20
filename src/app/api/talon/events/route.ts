@@ -4,6 +4,7 @@ import {
   TALON_EVENT_TYPES,
   buildQaAdvanceTimeAttributes,
   loadProfileTimezone,
+  maybeStampLoyaltyResetAt,
   postTalonEvent,
   type TalonEventType,
 } from '@/lib/talon-client'
@@ -67,7 +68,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.reason }, { status: 500 })
     }
 
-    return NextResponse.json(result.body, { status: result.status ?? 502 })
+    const resetAtWarning = await maybeStampLoyaltyResetAt({
+      type: eventType,
+      status: result.status,
+      profileId,
+    })
+    if (resetAtWarning) {
+      console.warn('Talon reset_user stamp warning:', resetAtWarning)
+    }
+
+    const status = result.status ?? 502
+    if (
+      resetAtWarning &&
+      result.body &&
+      typeof result.body === 'object' &&
+      !Array.isArray(result.body)
+    ) {
+      return NextResponse.json(
+        {
+          ...(result.body as object),
+          _qa: { resetAtWarning },
+        },
+        { status },
+      )
+    }
+
+    return NextResponse.json(result.body, { status })
   } catch (error) {
     console.error('Error calling Talon.One events API:', error)
     return NextResponse.json(

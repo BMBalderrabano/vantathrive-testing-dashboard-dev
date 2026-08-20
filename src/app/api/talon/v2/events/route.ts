@@ -5,6 +5,7 @@ import {
   buildExerciseExternalSessionId,
   buildQaAdvanceTimeAttributes,
   loadProfileTimezone,
+  maybeStampLoyaltyResetAt,
   postTalonEvent,
   v2EventFlagAttribute,
   type TalonAttributeValue,
@@ -116,6 +117,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.reason }, { status: 500 })
     }
 
+    const resetAtWarning = await maybeStampLoyaltyResetAt({
+      type: eventType,
+      status: result.status,
+      profileId,
+    })
+    if (resetAtWarning) {
+      console.warn('Talon V2 reset_user stamp warning:', resetAtWarning)
+    }
+
     return NextResponse.json(
       {
         ...((result.body && typeof result.body === 'object'
@@ -125,6 +135,7 @@ export async function POST(request: NextRequest) {
           type: eventType,
           attributes,
           status: result.status,
+          ...(resetAtWarning ? { resetAtWarning } : {}),
         },
       },
       { status: result.status ?? 502 },

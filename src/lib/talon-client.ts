@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { supabaseAdmin } from '@/lib/supabase/service-role'
+import { supabaseAdmin, supabaseAdminLegacy } from '@/lib/supabase/service-role'
 import {
   type TalonEventType,
   type TalonV2EventType,
@@ -136,4 +136,68 @@ export async function postTalonEvent(params: {
       attributes: params.attributes,
     }
   }
+}
+
+export type StampLoyaltyResetAtResult =
+  | { ok: true; updated: true }
+  | { ok: true; updated: false; warning: string }
+  | { ok: false; warning: string }
+
+/**
+ * After Talon reset_user 2xx: UPDATE-only stamp of loyalty.profile_cache.reset_at.
+ * Fail-open: missing row or DB error returns a warning; does not throw.
+ */
+export async function stampLoyaltyResetAt(
+  profileId: string,
+): Promise<StampLoyaltyResetAtResult> {
+  try {
+    // loyalty schema is not in generated Database types yet.
+    const loyalty = supabaseAdminLegacy.schema('loyalty')
+    const { data, error } = await loyalty
+      .from('profile_cache')
+      .update({ reset_at: new Date().toISOString() })
+      .eq('user_id', profileId)
+      .select('user_id')
+
+    if (error) {
+      return {
+        ok: false,
+        warning: `Failed to stamp loyalty.profile_cache.reset_at: ${error.message}`,
+      }
+    }
+
+    if (!data?.length) {
+      return {
+        ok: true,
+        updated: false,
+        warning:
+          'No loyalty.profile_cache row to stamp reset_at (UPDATE no-op)',
+      }
+    }
+
+    return { ok: true, updated: true }
+  } catch (error) {
+    return {
+      ok: false,
+      warning:
+        error instanceof Error
+          ? error.message
+          : 'Failed to stamp loyalty.profile_cache.reset_at',
+    }
+  }
+}
+
+/** Stamp reset_at when type is reset_user and Talon returned 2xx. */
+export async function maybeStampLoyaltyResetAt(params: {
+  type: string
+  status: number | undefined
+  profileId: string
+}): Promise<string | undefined> {
+  if (params.type !== 'reset_user') return undefined
+  const status = params.status ?? 0
+  if (status < 200 || status >= 300) return undefined
+
+  const result = await stampLoyaltyResetAt(params.profileId)
+  if (result.ok && result.updated) return undefined
+  return result.warning
 }
