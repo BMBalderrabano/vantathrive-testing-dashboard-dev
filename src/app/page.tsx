@@ -525,7 +525,6 @@ function DashboardContent() {
           </div>
 
           {/* Organization Membership quick card */}
-          <OrgMembershipQuick />
 
           {/* Time Advancement Controls */}
           <div className='bg-white rounded-lg shadow p-6 mb-6'>
@@ -579,6 +578,15 @@ function DashboardContent() {
               </button>
             </div>
           </div>
+
+          {/* Program Assignment - Only show if user is selected */}
+          {selectedUser && (
+            <ProgramAssignment
+              selectedUserId={selectedUser}
+              onDataUpdate={reloadUserStats}
+            />
+          )}
+          <br />
 
           {/* Calendly Integration */}
           {selectedUser && (
@@ -918,15 +926,6 @@ function DashboardContent() {
               onDataUpdate={reloadUserStats}
             />
           )}
-          <br />
-          {/* Program Assignment - Only show if user is selected */}
-          {selectedUser && (
-            <ProgramAssignment
-              selectedUserId={selectedUser}
-              onDataUpdate={reloadUserStats}
-            />
-          )}
-          <br />
           {/* Reminder Preferences - Only show if user is selected */}
           {selectedUser && (
             <ReminderPreferences
