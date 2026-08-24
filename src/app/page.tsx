@@ -26,6 +26,7 @@ import ProcessHabit from "@/components/ProcessHabit";
 import ProgramAssignment from "@/components/WorkoutAssignment";
 import ReminderPreferences from "@/components/ReminderPreferences";
 import Header from "@/components/Header";
+import OrgMembershipQuick from "@/components/OrgMembershipQuick";
 import { useQaContext } from "@/context/qa-context";
 
 function DashboardContent() {
@@ -523,60 +524,8 @@ function DashboardContent() {
             </div>
           </div>
 
-          {/* User Stats */}
-          {selectedUserData && (
-            <div className='bg-white rounded-lg shadow p-6 mb-6'>
-              <h2 className='text-xl font-semibold mb-4'>User Stats</h2>
-              <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-                <div className='text-center'>
-                  <div className='text-2xl font-bold text-blue-600'>
-                    {selectedUserData.current_level}
-                  </div>
-                  <div className='text-sm text-gray-600'>Level</div>
-                </div>
-                <div className='text-center'>
-                  <div className='text-2xl font-bold text-green-600'>
-                    {selectedUserData.hp_points}
-                  </div>
-                  <div className='text-sm text-gray-600'>HP Points</div>
-                </div>
-                <div className='text-center'>
-                  <div className='text-2xl font-bold text-purple-600'>
-                    {selectedUserData.empowerment}
-                  </div>
-                  <div className='text-sm text-gray-600'>Empowerment</div>
-                </div>
-                <div className='text-center'>
-                  <div className='text-lg font-bold text-orange-600'>
-                    {selectedUserData.current_phase}
-                  </div>
-                  <div className='text-sm text-gray-600'>Phase</div>
-                </div>
-                <div className='text-center'>
-                  <div className='text-xl font-bold text-indigo-600'>
-                    {selectedUserData.max_gate_unlocked || 0}
-                  </div>
-                  <div className='text-sm text-gray-600'>Max Gate</div>
-                  {selectedUserData.max_gate_type && (
-                    <div className='text-xs text-gray-500 mt-1'>
-                      {selectedUserData.max_gate_type}
-                    </div>
-                  )}
-                </div>
-                <div className='text-center'>
-                  <div className='text-lg font-bold text-pink-600'>
-                    {selectedUserData.empowerment_threshold_title || "N/A"}
-                  </div>
-                  <div className='text-sm text-gray-600'>Threshold</div>
-                  {selectedUserData.empowerment_threshold && (
-                    <div className='text-xs text-gray-500 mt-1'>
-                      ID: {selectedUserData.empowerment_threshold}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Organization Membership quick card */}
+          <OrgMembershipQuick />
 
           {/* Time Advancement Controls */}
           <div className='bg-white rounded-lg shadow p-6 mb-6'>
@@ -631,6 +580,85 @@ function DashboardContent() {
             </div>
           </div>
 
+          {/* Calendly Integration */}
+          {selectedUser && (
+            <CalendlyIntegration
+              selectedUserId={selectedUser || undefined}
+              selectedUserName={
+                selectedUserData
+                  ? `${selectedUserData.first_name} ${selectedUserData.last_name}`
+                  : undefined
+              }
+              onModalClose={handleCalendlyModalClose}
+              onDataUpdate={reloadUserStats}
+              initialTab={calendlyTab}
+              rescheduleUrl={rescheduleUrl}
+              onTabChange={() => {
+                // Reset the tab state after it's been set to allow re-triggering
+                if (calendlyTab) {
+                  setTimeout(() => {
+                    setCalendlyTab(null);
+                    // Keep rescheduleUrl until tab is closed via handleCalendlyModalClose
+                  }, 0);
+                }
+              }}
+            />
+          )}
+
+          {/* User Stats */}
+          {selectedUserData && (
+            <div className='bg-white rounded-lg shadow p-6 mb-6'>
+              <h2 className='text-xl font-semibold mb-4'>User Stats</h2>
+              <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4'>
+                <div className='text-center'>
+                  <div className='text-2xl font-bold text-blue-600'>
+                    {selectedUserData.current_level}
+                  </div>
+                  <div className='text-sm text-gray-600'>Level</div>
+                </div>
+                <div className='text-center'>
+                  <div className='text-2xl font-bold text-green-600'>
+                    {selectedUserData.hp_points}
+                  </div>
+                  <div className='text-sm text-gray-600'>HP Points</div>
+                </div>
+                <div className='text-center'>
+                  <div className='text-2xl font-bold text-purple-600'>
+                    {selectedUserData.empowerment}
+                  </div>
+                  <div className='text-sm text-gray-600'>Empowerment</div>
+                </div>
+                <div className='text-center'>
+                  <div className='text-lg font-bold text-orange-600'>
+                    {selectedUserData.current_phase}
+                  </div>
+                  <div className='text-sm text-gray-600'>Phase</div>
+                </div>
+                <div className='text-center'>
+                  <div className='text-xl font-bold text-indigo-600'>
+                    {selectedUserData.max_gate_unlocked || 0}
+                  </div>
+                  <div className='text-sm text-gray-600'>Max Gate</div>
+                  {selectedUserData.max_gate_type && (
+                    <div className='text-xs text-gray-500 mt-1'>
+                      {selectedUserData.max_gate_type}
+                    </div>
+                  )}
+                </div>
+                <div className='text-center'>
+                  <div className='text-lg font-bold text-pink-600'>
+                    {selectedUserData.empowerment_threshold_title || "N/A"}
+                  </div>
+                  <div className='text-sm text-gray-600'>Threshold</div>
+                  {selectedUserData.empowerment_threshold && (
+                    <div className='text-xs text-gray-500 mt-1'>
+                      ID: {selectedUserData.empowerment_threshold}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           {/* Last Result */}
           {lastResult && (
             <div className='bg-white rounded-lg shadow p-6 mb-6'>
@@ -877,30 +905,6 @@ function DashboardContent() {
             />
           </div>
 
-          {/* Calendly Integration */}
-          {selectedUser && (
-            <CalendlyIntegration
-              selectedUserId={selectedUser || undefined}
-              selectedUserName={
-                selectedUserData
-                  ? `${selectedUserData.first_name} ${selectedUserData.last_name}`
-                  : undefined
-              }
-              onModalClose={handleCalendlyModalClose}
-              onDataUpdate={reloadUserStats}
-              initialTab={calendlyTab}
-              rescheduleUrl={rescheduleUrl}
-              onTabChange={() => {
-                // Reset the tab state after it's been set to allow re-triggering
-                if (calendlyTab) {
-                  setTimeout(() => {
-                    setCalendlyTab(null);
-                    // Keep rescheduleUrl until tab is closed via handleCalendlyModalClose
-                  }, 0);
-                }
-              }}
-            />
-          )}
 
           {/* Serve Question - Only show if user is selected */}
           {selectedUser && (

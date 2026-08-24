@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQaContext } from "@/context/qa-context";
 import { OperatorAuthControls } from "@/components/OperatorAuthControls";
+import { Combobox } from "@/components/ui/combobox";
 
 export default function Header() {
   const pathname = usePathname();
@@ -57,26 +58,21 @@ export default function Header() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
           <div className="flex-1 min-w-0">
-            <label
-              htmlFor="header-test-user"
-              className="block text-xs font-medium text-gray-600 mb-1"
-            >
-              Test user
-            </label>
-            <select
-              id="header-test-user"
-              value={isHydrated ? selectedUserId : ""}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              disabled={!isHydrated}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white disabled:bg-gray-100"
-            >
-              <option value="">Choose a user...</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name} ({user.email})
-                </option>
-              ))}
-            </select>
+            <div id="header-test-user">
+              <Combobox
+                options={users.map((user) => ({
+                  value: user.id,
+                  label: `${user.first_name} ${user.last_name} (${user.email})`,
+                }))}
+                value={isHydrated ? selectedUserId : undefined}
+                onValueChange={(value) => setSelectedUserId(value ?? "")}
+                placeholder={isHydrated ? "Choose a user..." : "Loading..."}
+                searchPlaceholder="Search by name or email..."
+                emptyMessage="No user found."
+                disabled={!isHydrated}
+                className="h-10 text-sm font-normal"
+              />
+            </div>
           </div>
 
           <div className="flex-1 min-w-0 sm:max-w-xs">
