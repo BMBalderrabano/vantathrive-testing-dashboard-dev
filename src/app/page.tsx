@@ -7,7 +7,7 @@ import {
   advanceTime,
   getUserTransactions,
   resetUserData,
-  trackTalonEvent,
+  trackTalonV2Event,
   addChosenOne,
   getOrganizations,
   type Organization,
@@ -263,15 +263,15 @@ function DashboardContent() {
       let talonResetWarning: string | undefined;
       if (resetTalonOne) {
         try {
-          const { status, body } = await trackTalonEvent(selectedUser, "reset_user");
+          const { status, body } = await trackTalonV2Event(selectedUser, "reset_user");
           if (status < 200 || status >= 300) {
-            talonResetWarning = `Talon.One reset_user returned status ${status}`;
-            console.warn("Talon.One reset_user failed:", body);
+            talonResetWarning = `Talon.One V2 reset_user returned status ${status}`;
+            console.warn("Talon.One V2 reset_user failed:", body);
           }
         } catch (error) {
           talonResetWarning =
-            error instanceof Error ? error.message : "Failed to call Talon.One reset_user";
-          console.warn("Talon.One reset_user error:", error);
+            error instanceof Error ? error.message : "Failed to call Talon.One V2 reset_user";
+          console.warn("Talon.One V2 reset_user error:", error);
         }
       }
 
@@ -280,9 +280,9 @@ function DashboardContent() {
       if (result.success) {
         let successMessage = `User data reset successfully: ${result.message}`;
         if (talonResetWarning) {
-          successMessage += `\n\nTalon.One: ${talonResetWarning}`;
+          successMessage += `\n\nTalon.One V2: ${talonResetWarning}`;
         } else if (resetTalonOne) {
-          successMessage += "\n\nTalon.One: reset_user event sent";
+          successMessage += "\n\nTalon.One V2: reset_user event sent";
         }
         if (result.pushfire?.warning) {
           successMessage += `\n\nPushfire: ${result.pushfire.warning}`;
