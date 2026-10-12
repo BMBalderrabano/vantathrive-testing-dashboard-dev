@@ -25,6 +25,7 @@ import ServeQuestion from "@/components/ServeQuestion";
 import ProcessHabit from "@/components/ProcessHabit";
 import ProgramAssignment from "@/components/WorkoutAssignment";
 import ReminderPreferences from "@/components/ReminderPreferences";
+import RewardsQa from "@/components/RewardsQa";
 import Header from "@/components/Header";
 import OrgMembershipQuick from "@/components/OrgMembershipQuick";
 import { useQaContext } from "@/context/qa-context";
@@ -666,6 +667,13 @@ function DashboardContent() {
                 </div>
               </div>
             </div>
+          )}
+
+          {selectedUser && (
+            <RewardsQa
+              selectedUserId={selectedUser}
+              onDataUpdate={reloadUserStats}
+            />
           )}
           {/* Last Result */}
           {lastResult && (

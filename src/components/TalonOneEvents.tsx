@@ -10,6 +10,7 @@ import {
   completeExerciseV2,
   getAssignProgramOptions,
   getTalonV2TodayExercises,
+  summarizeProcessPurchaseEffects,
   trackTalonEvent,
   trackTalonV2Event,
   type TalonEventType,
@@ -28,7 +29,15 @@ const STANDARD_EVENT_TYPES = TALON_EVENT_TYPES.filter(
   (type) => type !== "qa_advance_time",
 );
 
-const V2_SIMPLE_TYPES = ["onboarded", "reset_user"] as const;
+const V2_SIMPLE_TYPES = [
+  "onboarded",
+  "reset_user",
+  "screening_booked",
+  "screening_attended",
+  "consultation_booked",
+  "consultation_attended",
+  "intake_survey_completed",
+] as const;
 
 export default function TalonOneEvents() {
   const { selectedUserId, selectedOrgId, isHydrated } = useQaContext();
@@ -52,6 +61,9 @@ export default function TalonOneEvents() {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [needsAssign, setNeedsAssign] = useState(false);
   const [assignLoading, setAssignLoading] = useState(false);
+
+  const [purchaseCost, setPurchaseCost] = useState(100);
+  const [purchaseID, setPurchaseID] = useState("");
 
   const profileId = isHydrated ? selectedUserId : "";
   const buttonsDisabled = !profileId || loadingKey !== null;
@@ -125,6 +137,10 @@ export default function TalonOneEvents() {
     void refreshAssignOptions();
   }, [refreshTodayExercises, refreshAssignOptions]);
 
+  useEffect(() => {
+    setPurchaseID(profileId ? crypto.randomUUID() : "");
+  }, [profileId]);
+
   const setResult = (label: string, status: number, body: unknown) => {
     setLastResult({
       status,
@@ -171,7 +187,7 @@ export default function TalonOneEvents() {
     }
   };
 
-  const handleV2Simple = async (type: "onboarded" | "reset_user") => {
+  const handleV2Simple = async (type: (typeof V2_SIMPLE_TYPES)[number]) => {
     if (!profileId) return;
     setLoadingKey(`v2:${type}`);
     try {
@@ -245,6 +261,34 @@ export default function TalonOneEvents() {
     }
   };
 
+  const handleV2Purchase = async () => {
+    if (!profileId) return;
+    const cost = Number(purchaseCost);
+    if (!Number.isFinite(cost) || cost <= 0) {
+      setResult("V2 Process Purchase (rewards)", 0, {
+        error: "purchaseCost must be a positive number",
+      });
+      return;
+    }
+    const id = purchaseID.trim() || crypto.randomUUID();
+    if (!purchaseID.trim()) setPurchaseID(id);
+    setLoadingKey("v2:process_purchase");
+    try {
+      const { status, body } = await trackTalonV2Event(
+        profileId,
+        "process_purchase",
+        { purchaseCost: cost, purchaseID: id },
+      );
+      setResult("V2 Process Purchase (rewards)", status, body);
+    } catch (err) {
+      setResult("V2 Process Purchase (rewards)", 0, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setLoadingKey(null);
+    }
+  };
+
   const completeDisabled =
     buttonsDisabled ||
     exercisesLoading ||
@@ -255,6 +299,17 @@ export default function TalonOneEvents() {
     buttonsDisabled ||
     assignLoading ||
     (needsAssign && !selectedTemplateId);
+
+  const purchaseDisabled =
+    buttonsDisabled ||
+    !Number.isFinite(Number(purchaseCost)) ||
+    Number(purchaseCost) <= 0 ||
+    !purchaseID.trim();
+
+  const purchaseEffects =
+    lastResult?.label === "V2 Process Purchase (rewards)"
+      ? summarizeProcessPurchaseEffects(lastResult.body)
+      : null;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -511,6 +566,66 @@ export default function TalonOneEvents() {
                   : "Complete sets + fire exercise_completed"}
               </button>
             </div>
+
+            <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-3 space-y-2">
+              <div className="text-sm font-medium text-emerald-900">
+                {TALON_V2_CAMPAIGN_LABELS.process_purchase}
+              </div>
+              <p className="text-xs text-emerald-800">
+                App 2 key. Empty effects = no debit. Replaying the same
+                purchaseID is ledger-idempotent.
+              </p>
+              <label className="block text-xs text-emerald-900">
+                purchaseCost
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={purchaseCost}
+                  onChange={(e) => setPurchaseCost(Number(e.target.value))}
+                  disabled={buttonsDisabled}
+                  className="mt-1 w-full border rounded-md px-2 py-1.5 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-emerald-900">
+                purchaseID
+                <input
+                  type="text"
+                  value={purchaseID}
+                  onChange={(e) => setPurchaseID(e.target.value)}
+                  disabled={buttonsDisabled}
+                  className="mt-1 w-full border rounded-md px-2 py-1.5 text-sm font-mono"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPurchaseID(crypto.randomUUID())}
+                  disabled={buttonsDisabled}
+                  className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
+                    buttonsDisabled
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50"
+                  }`}
+                >
+                  New purchaseID
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleV2Purchase()}
+                  disabled={purchaseDisabled}
+                  className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
+                    purchaseDisabled
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-emerald-700 text-white hover:bg-emerald-800"
+                  }`}
+                >
+                  {loadingKey === "v2:process_purchase"
+                    ? "Firing..."
+                    : "Fire process_purchase"}
+                </button>
+              </div>
+            </div>
           </section>
         </div>
 
@@ -526,6 +641,19 @@ export default function TalonOneEvents() {
                   <span className="font-medium">Action:</span> {lastResult.label}
                 </div>
                 <div className="text-xs text-gray-500">{lastResult.at}</div>
+                {purchaseEffects && (
+                  <div
+                    className={`text-sm rounded-md px-3 py-2 ${
+                      purchaseEffects.noDebit
+                        ? "bg-amber-50 text-amber-900 border border-amber-200"
+                        : "bg-emerald-50 text-emerald-900 border border-emerald-200"
+                    }`}
+                  >
+                    {purchaseEffects.noDebit
+                      ? `Empty effects = no debit (${purchaseEffects.effects.length} effects)`
+                      : `Debit ${purchaseEffects.debit} VP (${purchaseEffects.effects.length} effects)`}
+                  </div>
+                )}
                 <pre className="text-xs text-gray-800 whitespace-pre-wrap break-words">
                   {JSON.stringify(lastResult.body, null, 2)}
                 </pre>

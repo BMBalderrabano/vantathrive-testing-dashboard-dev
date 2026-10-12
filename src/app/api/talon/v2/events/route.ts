@@ -7,7 +7,7 @@ import {
   loadProfileTimezone,
   maybeStampLoyaltyResetAt,
   postTalonEvent,
-  v2EventFlagAttribute,
+  v2LogicalEventPayload,
   type TalonAttributeValue,
   type TalonV2EventType,
 } from '@/lib/talon-client'
@@ -26,6 +26,10 @@ interface TalonV2EventRequest {
   isDayComplete?: boolean
   endOfWeek?: string
   externalSessionID?: string
+  /** Required for process_purchase. */
+  purchaseCost?: number
+  /** Optional; generated when omitted. Replay of the same id is ledger-idempotent. */
+  purchaseID?: string
 }
 
 export async function POST(request: NextRequest) {
@@ -51,8 +55,10 @@ export async function POST(request: NextRequest) {
 
     const eventType = type as TalonV2EventType
     const timezone = await loadProfileTimezone(profileId)
+    const logical = v2LogicalEventPayload(eventType)
+    const integrationType = logical.integrationType
     let attributes: Record<string, TalonAttributeValue> = {
-      [v2EventFlagAttribute(eventType)]: true,
+      ...logical.attributes,
     }
 
     if (eventType === 'qa_advance_time') {
@@ -104,11 +110,27 @@ export async function POST(request: NextRequest) {
         body.externalSessionID.trim()
           ? body.externalSessionID.trim()
           : buildExerciseExternalSessionId(body.exerciseId)
+    } else if (eventType === 'process_purchase') {
+      if (
+        typeof body.purchaseCost !== 'number' ||
+        !Number.isFinite(body.purchaseCost) ||
+        body.purchaseCost <= 0
+      ) {
+        return NextResponse.json(
+          { error: 'purchaseCost must be a positive number' },
+          { status: 400 },
+        )
+      }
+      attributes.purchaseCost = body.purchaseCost
+      attributes.purchaseID =
+        typeof body.purchaseID === 'string' && body.purchaseID.trim()
+          ? body.purchaseID.trim()
+          : crypto.randomUUID()
     }
 
     const result = await postTalonEvent({
       profileId,
-      type: eventType,
+      type: integrationType,
       attributes,
       app: 'v2',
     })
@@ -133,6 +155,7 @@ export async function POST(request: NextRequest) {
           : { body: result.body }) as object),
         _qa: {
           type: eventType,
+          integrationType,
           attributes,
           status: result.status,
           ...(resetAtWarning ? { resetAtWarning } : {}),

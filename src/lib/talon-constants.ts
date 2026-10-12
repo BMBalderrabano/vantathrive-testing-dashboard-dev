@@ -17,6 +17,12 @@ export const TALON_V2_EVENT_TYPES = [
   'exercise_completed',
   'qa_advance_time',
   'reset_user',
+  'consultation_booked',
+  'consultation_attended',
+  'screening_booked',
+  'screening_attended',
+  'intake_survey_completed',
+  'process_purchase',
 ] as const
 
 export type TalonV2EventType = (typeof TALON_V2_EVENT_TYPES)[number]
@@ -27,15 +33,70 @@ export const TALON_V2_CAMPAIGN_LABELS: Record<TalonV2EventType, string> = {
   exercise_completed: 'Complete Exercise (82)',
   qa_advance_time: 'Advance Time (83)',
   reset_user: 'Reset User (81)',
+  screening_booked: 'Screening Booked (93)',
+  screening_attended: 'Screening Attended (93)',
+  consultation_booked: 'Consultation Booked (94)',
+  consultation_attended: 'Consultation Attended (94)',
+  intake_survey_completed: 'Intake Survey Completed (95)',
+  process_purchase: 'Process Purchase (rewards)',
 }
 
 /**
- * Event-entity boolean flag. App 2 registers Complete Exercise as
- * `exerciseCompleted` (not the Integration API type `exercise_completed`).
+ * Event-entity boolean flag when it differs from the Integration API type.
+ * Prefer `v2LogicalEventPayload` for new pre-program events (parent T1 types).
  */
 export function v2EventFlagAttribute(type: TalonV2EventType): string {
   if (type === 'exercise_completed') return 'exerciseCompleted'
   return type
+}
+
+/**
+ * Map QA logical slugs → Talon.One Integration custom event type + attrs.
+ * Sandbox app 2 registers parent types (`consultation` / `screening` /
+ * `intake_survey`), not `*_booked` / `*_attended` / `intake_survey_completed`.
+ * Booked/attended rules need the parent flag + camelCase discriminator.
+ */
+export function v2LogicalEventPayload(type: TalonV2EventType): {
+  integrationType: string
+  attributes: Record<string, boolean>
+} {
+  switch (type) {
+    case 'consultation_booked':
+      return {
+        integrationType: 'consultation',
+        attributes: { consultation: true, consultationBooked: true },
+      }
+    case 'consultation_attended':
+      return {
+        integrationType: 'consultation',
+        attributes: { consultation: true, consultationAttended: true },
+      }
+    case 'screening_booked':
+      return {
+        integrationType: 'screening',
+        attributes: { screening: true, screeningBooked: true },
+      }
+    case 'screening_attended':
+      return {
+        integrationType: 'screening',
+        attributes: { screening: true, screeningAttended: true },
+      }
+    case 'intake_survey_completed':
+      return {
+        integrationType: 'intake_survey',
+        attributes: { intake_survey: true },
+      }
+    case 'process_purchase':
+      return {
+        integrationType: 'process_purchase',
+        attributes: { processPurchase: true },
+      }
+    default:
+      return {
+        integrationType: type,
+        attributes: { [v2EventFlagAttribute(type)]: true },
+      }
+  }
 }
 
 /** Campaign 47 / V2 Advance Time: reset ephemeral subledgers after a calendar jump. */
@@ -66,4 +127,40 @@ export function buildExerciseExternalSessionId(
   epochMs: number = Date.now(),
 ): string {
   return `${epochMs}-${exerciseId}`
+}
+
+export interface ProcessPurchaseEffectsSummary {
+  effects: unknown[]
+  debit: number | null
+  noDebit: boolean
+}
+
+/** Empty effects (or no matching deduct) means T1 did not debit VP. */
+export function summarizeProcessPurchaseEffects(
+  body: unknown,
+): ProcessPurchaseEffectsSummary {
+  if (!body || typeof body !== 'object') {
+    return { effects: [], debit: null, noDebit: true }
+  }
+  const rawEffects = (body as { effects?: unknown }).effects
+  const effects = Array.isArray(rawEffects) ? rawEffects : []
+  let debit: number | null = null
+  for (const raw of effects) {
+    if (!raw || typeof raw !== 'object') continue
+    const effect = raw as Record<string, unknown>
+    const props =
+      effect.props && typeof effect.props === 'object'
+        ? (effect.props as Record<string, unknown>)
+        : effect
+    const type = String(effect.effectType ?? effect.type ?? '')
+    if (type !== 'deductLoyaltyPoints') continue
+    const sub = props.subLedgerId ?? props.subledgerId ?? ''
+    if (sub !== '' && sub !== null) continue
+    const value = Number(props.value ?? props.amount ?? effect.value)
+    if (Number.isFinite(value)) {
+      debit = value
+      break
+    }
+  }
+  return { effects, debit, noDebit: debit === null }
 }

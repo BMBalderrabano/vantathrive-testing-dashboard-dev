@@ -11,11 +11,14 @@ export {
   TALON_V2_EVENT_TYPES,
   TALON_V2_CAMPAIGN_LABELS,
   v2EventFlagAttribute,
+  v2LogicalEventPayload,
   buildQaAdvanceTimeAttributes,
   qaAdvanceAttrsFromHours,
   buildExerciseExternalSessionId,
+  summarizeProcessPurchaseEffects,
   type TalonEventType,
   type TalonV2EventType,
+  type ProcessPurchaseEffectsSummary,
 } from '@/lib/talon-constants'
 
 export const DEFAULT_TALON_BASE_URL = 'https://medvanta.us-east4.talon.one'

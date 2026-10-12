@@ -25,8 +25,10 @@ export {
   TALON_EVENT_TYPES,
   TALON_V2_EVENT_TYPES,
   TALON_V2_CAMPAIGN_LABELS,
+  summarizeProcessPurchaseEffects,
   type TalonEventType,
   type TalonV2EventType,
+  type ProcessPurchaseEffectsSummary,
 } from './talon-constants'
 
 export interface ServeQuestionRequest {
@@ -452,6 +454,83 @@ export async function advanceTimeV2(
   }
 
   return trackTalonV2Event(profileId, 'qa_advance_time')
+}
+
+export interface RewardSku {
+  id: string
+  name: string
+  vendor: string | null
+  status: string
+  vp_cost: number | null
+  face_value: number | null
+  unused_count: number
+}
+
+export interface RewardRedemption {
+  id: string
+  reward_id: string
+  status: string
+  reward_name: string
+  vp_cost: number
+  face_value: number | null
+  url: string | null
+  url_visible: boolean
+  hp_before: number | null
+  needs_attention: boolean
+  attention_reason: string | null
+  t1_http_status: number | null
+  redeemed_at: string | null
+  created_at: string
+}
+
+export async function getRewardSkus(): Promise<{
+  backendUrl: string
+  skus: RewardSku[]
+}> {
+  const response = await fetch('/api/rewards/catalog')
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(
+      (body as { error?: string }).error ||
+        `HTTP error! status: ${response.status}`,
+    )
+  }
+  return body
+}
+
+export async function getUserRewardRedemptions(userId: string): Promise<{
+  backendUrl: string
+  urlVisibility: string
+  redemptions: RewardRedemption[]
+}> {
+  const response = await fetch(
+    `/api/rewards/redemptions?userId=${encodeURIComponent(userId)}`,
+  )
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(
+      (body as { error?: string }).error ||
+        `HTTP error! status: ${response.status}`,
+    )
+  }
+  return body
+}
+
+export async function redeemRewardSku(
+  userId: string,
+  rewardId: string,
+): Promise<TrackTalonEventResult & { backendUrl?: string }> {
+  const response = await fetch('/api/rewards/redeem', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, reward_id: rewardId }),
+  })
+  const body = await response.json().catch(() => ({}))
+  return {
+    status: response.status,
+    body,
+    backendUrl: (body as { backendUrl?: string }).backendUrl,
+  }
 }
 
 export async function resetUserData(
