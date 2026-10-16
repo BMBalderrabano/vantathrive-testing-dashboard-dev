@@ -10,7 +10,9 @@ import {
   completeExerciseV2,
   getAssignProgramOptions,
   getTalonV2TodayExercises,
+  getUsers,
   summarizeProcessPurchaseEffects,
+  summarizeProcessRefundEffects,
   trackTalonEvent,
   trackTalonV2Event,
   type TalonEventType,
@@ -64,6 +66,14 @@ export default function TalonOneEvents() {
 
   const [purchaseCost, setPurchaseCost] = useState(100);
   const [purchaseID, setPurchaseID] = useState("");
+  const [refundAmount, setRefundAmount] = useState(100);
+  const [refundPurchaseID, setRefundPurchaseID] = useState(() =>
+    crypto.randomUUID(),
+  );
+  const [hpSnapshot, setHpSnapshot] = useState<{
+    before: number | null;
+    after: number | null;
+  } | null>(null);
 
   const profileId = isHydrated ? selectedUserId : "";
   const buttonsDisabled = !profileId || loadingKey !== null;
@@ -139,6 +149,8 @@ export default function TalonOneEvents() {
 
   useEffect(() => {
     setPurchaseID(profileId ? crypto.randomUUID() : "");
+    setRefundPurchaseID(profileId ? crypto.randomUUID() : "");
+    setHpSnapshot(null);
   }, [profileId]);
 
   const setResult = (label: string, status: number, body: unknown) => {
@@ -289,6 +301,41 @@ export default function TalonOneEvents() {
     }
   };
 
+  const handleV2Refund = async () => {
+    if (!profileId) return;
+    const amount = Number(refundAmount);
+    if (!Number.isInteger(amount) || amount <= 0) {
+      setResult("V2 Process Refund (rewards)", 0, {
+        error: "refundAmount must be a positive integer",
+      });
+      return;
+    }
+    const id = refundPurchaseID.trim() || crypto.randomUUID();
+    if (!refundPurchaseID.trim()) setRefundPurchaseID(id);
+    setLoadingKey("v2:process_refund");
+    try {
+      const usersBefore = await getUsers();
+      const before =
+        usersBefore.find((user) => user.id === profileId)?.hp_points ?? null;
+      const { status, body } = await trackTalonV2Event(
+        profileId,
+        "process_refund",
+        { refundAmount: amount, purchaseID: id },
+      );
+      const usersAfter = await getUsers();
+      const after =
+        usersAfter.find((user) => user.id === profileId)?.hp_points ?? null;
+      setHpSnapshot({ before, after });
+      setResult("V2 Process Refund (rewards)", status, body);
+    } catch (err) {
+      setResult("V2 Process Refund (rewards)", 0, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setLoadingKey(null);
+    }
+  };
+
   const completeDisabled =
     buttonsDisabled ||
     exercisesLoading ||
@@ -306,9 +353,20 @@ export default function TalonOneEvents() {
     Number(purchaseCost) <= 0 ||
     !purchaseID.trim();
 
+  const refundDisabled =
+    buttonsDisabled ||
+    !Number.isInteger(Number(refundAmount)) ||
+    Number(refundAmount) <= 0 ||
+    !refundPurchaseID.trim();
+
   const purchaseEffects =
     lastResult?.label === "V2 Process Purchase (rewards)"
       ? summarizeProcessPurchaseEffects(lastResult.body)
+      : null;
+
+  const refundEffects =
+    lastResult?.label === "V2 Process Refund (rewards)"
+      ? summarizeProcessRefundEffects(lastResult.body)
       : null;
 
   return (
@@ -626,6 +684,66 @@ export default function TalonOneEvents() {
                 </button>
               </div>
             </div>
+
+            <div className="rounded-lg border border-sky-100 bg-sky-50/50 p-3 space-y-2">
+              <div className="text-sm font-medium text-sky-900">
+                {TALON_V2_CAMPAIGN_LABELS.process_refund}
+              </div>
+              <p className="text-xs text-sky-800">
+                App 2 key. Empty effects = no credit. Dummy purchaseID is fine.
+                Pass = 2xx and the member&apos;s hp_points went up.
+              </p>
+              <label className="block text-xs text-sky-900">
+                refundAmount
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(Number(e.target.value))}
+                  disabled={buttonsDisabled}
+                  className="mt-1 w-full border rounded-md px-2 py-1.5 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-sky-900">
+                purchaseID
+                <input
+                  type="text"
+                  value={refundPurchaseID}
+                  onChange={(e) => setRefundPurchaseID(e.target.value)}
+                  disabled={buttonsDisabled}
+                  className="mt-1 w-full border rounded-md px-2 py-1.5 text-sm font-mono"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRefundPurchaseID(crypto.randomUUID())}
+                  disabled={buttonsDisabled}
+                  className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
+                    buttonsDisabled
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-white text-sky-800 border border-sky-200 hover:bg-sky-50"
+                  }`}
+                >
+                  New purchaseID
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleV2Refund()}
+                  disabled={refundDisabled}
+                  className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
+                    refundDisabled
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-sky-700 text-white hover:bg-sky-800"
+                  }`}
+                >
+                  {loadingKey === "v2:process_refund"
+                    ? "Firing..."
+                    : "Fire process_refund"}
+                </button>
+              </div>
+            </div>
           </section>
         </div>
 
@@ -652,6 +770,40 @@ export default function TalonOneEvents() {
                     {purchaseEffects.noDebit
                       ? `Empty effects = no debit (${purchaseEffects.effects.length} effects)`
                       : `Debit ${purchaseEffects.debit} VP (${purchaseEffects.effects.length} effects)`}
+                  </div>
+                )}
+                {refundEffects && (
+                  <div className="space-y-2">
+                    <div
+                      className={`text-sm rounded-md px-3 py-2 ${
+                        refundEffects.noCredit
+                          ? "bg-amber-50 text-amber-900 border border-amber-200"
+                          : "bg-sky-50 text-sky-900 border border-sky-200"
+                      }`}
+                    >
+                      {refundEffects.noCredit
+                        ? `Empty effects = no credit (${refundEffects.effects.length} effects)`
+                        : `Credit ${refundEffects.credit} VP (${refundEffects.effects.length} effects)`}
+                    </div>
+                    {hpSnapshot && (
+                      <div
+                        className={`text-sm rounded-md px-3 py-2 ${
+                          hpSnapshot.before != null &&
+                          hpSnapshot.after != null &&
+                          hpSnapshot.after > hpSnapshot.before
+                            ? "bg-sky-50 text-sky-900 border border-sky-200"
+                            : "bg-amber-50 text-amber-900 border border-amber-200"
+                        }`}
+                      >
+                        hp_points {hpSnapshot.before ?? "—"} →{" "}
+                        {hpSnapshot.after ?? "—"}
+                        {hpSnapshot.before != null &&
+                        hpSnapshot.after != null &&
+                        hpSnapshot.after > hpSnapshot.before
+                          ? " (balance up)"
+                          : " (balance did not increase)"}
+                      </div>
+                    )}
                   </div>
                 )}
                 <pre className="text-xs text-gray-800 whitespace-pre-wrap break-words">

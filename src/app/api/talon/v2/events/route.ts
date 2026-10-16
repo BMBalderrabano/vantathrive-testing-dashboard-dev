@@ -30,6 +30,8 @@ interface TalonV2EventRequest {
   purchaseCost?: number
   /** Optional; generated when omitted. Replay of the same id is ledger-idempotent. */
   purchaseID?: string
+  /** Required for process_refund. */
+  refundAmount?: number
 }
 
 export async function POST(request: NextRequest) {
@@ -122,6 +124,22 @@ export async function POST(request: NextRequest) {
         )
       }
       attributes.purchaseCost = body.purchaseCost
+      attributes.purchaseID =
+        typeof body.purchaseID === 'string' && body.purchaseID.trim()
+          ? body.purchaseID.trim()
+          : crypto.randomUUID()
+    } else if (eventType === 'process_refund') {
+      if (
+        typeof body.refundAmount !== 'number' ||
+        !Number.isInteger(body.refundAmount) ||
+        body.refundAmount <= 0
+      ) {
+        return NextResponse.json(
+          { error: 'refundAmount must be a positive integer' },
+          { status: 400 },
+        )
+      }
+      attributes.refundAmount = body.refundAmount
       attributes.purchaseID =
         typeof body.purchaseID === 'string' && body.purchaseID.trim()
           ? body.purchaseID.trim()

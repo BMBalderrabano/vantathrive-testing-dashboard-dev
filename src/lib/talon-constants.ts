@@ -23,6 +23,7 @@ export const TALON_V2_EVENT_TYPES = [
   'screening_attended',
   'intake_survey_completed',
   'process_purchase',
+  'process_refund',
 ] as const
 
 export type TalonV2EventType = (typeof TALON_V2_EVENT_TYPES)[number]
@@ -39,6 +40,7 @@ export const TALON_V2_CAMPAIGN_LABELS: Record<TalonV2EventType, string> = {
   consultation_attended: 'Consultation Attended (94)',
   intake_survey_completed: 'Intake Survey Completed (95)',
   process_purchase: 'Process Purchase (rewards)',
+  process_refund: 'Process Refund (rewards)',
 }
 
 /**
@@ -90,6 +92,11 @@ export function v2LogicalEventPayload(type: TalonV2EventType): {
       return {
         integrationType: 'process_purchase',
         attributes: { processPurchase: true },
+      }
+    case 'process_refund':
+      return {
+        integrationType: 'process_refund',
+        attributes: { processRefund: true },
       }
     default:
       return {
@@ -163,4 +170,40 @@ export function summarizeProcessPurchaseEffects(
     }
   }
   return { effects, debit, noDebit: debit === null }
+}
+
+export interface ProcessRefundEffectsSummary {
+  effects: unknown[]
+  credit: number | null
+  noCredit: boolean
+}
+
+/** Empty effects (or no matching add) means T1 did not credit VP. */
+export function summarizeProcessRefundEffects(
+  body: unknown,
+): ProcessRefundEffectsSummary {
+  if (!body || typeof body !== 'object') {
+    return { effects: [], credit: null, noCredit: true }
+  }
+  const rawEffects = (body as { effects?: unknown }).effects
+  const effects = Array.isArray(rawEffects) ? rawEffects : []
+  let credit: number | null = null
+  for (const raw of effects) {
+    if (!raw || typeof raw !== 'object') continue
+    const effect = raw as Record<string, unknown>
+    const props =
+      effect.props && typeof effect.props === 'object'
+        ? (effect.props as Record<string, unknown>)
+        : effect
+    const type = String(effect.effectType ?? effect.type ?? '')
+    if (type !== 'addLoyaltyPoints') continue
+    const sub = props.subLedgerId ?? props.subledgerId ?? ''
+    if (sub !== '' && sub !== null) continue
+    const value = Number(props.value ?? props.amount ?? effect.value)
+    if (Number.isFinite(value)) {
+      credit = value
+      break
+    }
+  }
+  return { effects, credit, noCredit: credit === null }
 }
