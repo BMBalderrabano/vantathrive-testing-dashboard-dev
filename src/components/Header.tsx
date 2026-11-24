@@ -51,6 +51,9 @@ export default function Header() {
             <Link href="/talonone" className={navLinkClass("/talonone")}>
               TalonOne
             </Link>
+            <Link href="/calendly-reset" className={navLinkClass("/calendly-reset")}>
+              Calendly Reset
+            </Link>
           </nav>
 
           <OperatorAuthControls />
